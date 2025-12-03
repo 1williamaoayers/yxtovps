@@ -145,6 +145,14 @@ async function fetchAndParseNewIPs(piu) {
     }
 }
 
+// UTF-8 safe Base64 encoding
+function utf8_to_b64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+        function toSolidBytes(match, p1) {
+            return String.fromCharCode('0x' + p1);
+    }));
+}
+
 // 生成VLESS链接
 function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
@@ -334,7 +342,7 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
                 vmessConfig.sni = workerDomain;
                 vmessConfig.fp = "chrome";
             }
-            const vmessBase64 = btoa(JSON.stringify(vmessConfig));
+            const vmessBase64 = utf8_to_b64(JSON.stringify(vmessConfig));
             links.push(`vmess://${vmessBase64}`);
         });
     });
@@ -478,7 +486,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
             subscriptionContent = generateQuantumultConfig(finalLinks);
             break;
         default:
-            subscriptionContent = btoa(finalLinks.join('\n'));
+            subscriptionContent = utf8_to_b64(finalLinks.join('\n'));
     }
     
     return new Response(subscriptionContent, {
@@ -552,7 +560,7 @@ function generateSurgeConfig(links) {
 
 // 生成Quantumult配置
 function generateQuantumultConfig(links) {
-    return btoa(links.join('\n'));
+    return utf8_to_b64(links.join('\n'));
 }
 
 
