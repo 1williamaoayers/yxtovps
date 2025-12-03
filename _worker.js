@@ -379,7 +379,7 @@ function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/') {
 }
 
 // 生成订阅内容
-async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath) {
+async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, epd, epi, egi, eapi) {
     const url = new URL(request.url);
     const finalLinks = [];
     const workerDomain = url.hostname;  // workerDomain始终是请求的hostname
@@ -811,7 +811,7 @@ function generateHomePage(scuValue, defaultUUID = '') {
             </div>
             <div class="input-group">
                 <label class="input-label">UUID</label>
-                <input type="text" id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${defaultUUID}">
+                <input type="text" id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
             </div>
             <div class="input-group">
                 <label class="input-label">自定义路径 (可选)</label>
@@ -1178,10 +1178,10 @@ export default {
             }
             
             // 从URL参数获取配置
-            epd = url.searchParams.get('epd') !== 'no';
-            epi = url.searchParams.get('epi') !== 'no';
-            egi = url.searchParams.get('egi') !== 'no';
-            eapi = url.searchParams.get('eapi') !== 'no';
+            const epd = url.searchParams.get('epd') !== 'no';
+            const epi = url.searchParams.get('epi') !== 'no';
+            const egi = url.searchParams.get('egi') !== 'no';
+            const eapi = url.searchParams.get('eapi') !== 'no';
             const piu = url.searchParams.get('piu') || defaultIPURL;
             
             // 协议选择
@@ -1204,7 +1204,7 @@ export default {
             // 自定义路径
             const customPath = url.searchParams.get('path') || '/';
             
-            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath);
+            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, epd, epi, egi, eapi);
         }
         
         return new Response('Not Found', { status: 404 });

@@ -127,7 +127,7 @@ services:
     ```
 
 2.  **设置上传地址**:
-    - 菜单中选择 **"5. 结果上报设置"** (或类似选项)。
+    - 菜单中选择 **"结果上报设置"** (或类似选项)。
     - 选择 **"Cloudflare Workers API"**。
     - 输入你在 **第一步** 获取的 **Worker 管理地址** (例如 `https://my-worker.dev/my-uuid`)。
     - 确认保存。
@@ -170,3 +170,10 @@ A: 确保 NAS/服务器网络正常；尝试在启动命令或 Compose 中启用
 - **修改测速参数**: 编辑 `yx-tools/cloudflare_speedtest.py` 或相关配置文件。
 - **自定义优选域名**: 在 Worker 代码开头修改 `directDomains` 列表。
 
+---
+
+## 🙏 致谢
+
+- 感谢 [joeyblog](https://github.com/byJoey/cfnew) 的项目提供的灵感与基础。
+
+如果本项目对你有帮助，请点击右上角的 ⭐ Star 支持一下！
