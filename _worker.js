@@ -86,7 +86,7 @@ async function fetchDynamicIPs(ipv4Enabled = true, ipv6Enabled = true, ispMobile
         return [];
     }
 }
-// Last updated: 2025-12-03
+// Last updated: 2025-12-04
 
 // 解析wetest页面
 async function fetchAndParseWetest(url) {
@@ -972,16 +972,25 @@ function generateHomePage(scuValue, defaultUUID = '') {
             }, timeout);
         }
 
-                async function fetchUploadedIPs() {
-            const uuid = document.getElementById('uuid').value.trim();
-            if (!uuid) return showToast('请先填写 UUID');
+                function getCurrentUUID() {
+            const path = window.location.pathname;
+            const pathUUID = path.split('/')[1];
+            if (pathUUID && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pathUUID)) {
+                return pathUUID;
+            }
+            return document.getElementById('uuid').value.trim();
+        }
+
+        async function fetchUploadedIPs() {
+            const uuid = getCurrentUUID();
             
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '加载中...';
+            const btn = (typeof event !== 'undefined' && event && event.target) ? event.target : document.querySelector('button[onclick="fetchUploadedIPs()"]');
+            const originalText = btn ? btn.textContent : '刷新列表';
+            if (btn) btn.textContent = '加载中...';
             
             try {
-                const response = await fetch(\`/\${uuid}/api/preferred-ips\`);
+                const apiPath = uuid ? \`/\${uuid}/api/preferred-ips\` : '/api/preferred-ips';
+                const response = await fetch(apiPath);
                 if (!response.ok) throw new Error('获取失败');
                 const data = await response.json();
                 
@@ -1013,9 +1022,14 @@ function generateHomePage(scuValue, defaultUUID = '') {
             } catch (e) {
                 showToast(e.message);
             } finally {
-                btn.textContent = originalText;
+                if (btn) btn.textContent = originalText;
             }
         }
+
+        // 自动加载
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchUploadedIPs();
+        });
 
         async function clearUploadedIPs() {
             if (!confirm('确定要清空所有上传的IP吗？')) return;
@@ -1126,12 +1140,12 @@ export default {
         // API 路由处理 (优选IP上传)
         if (path.endsWith('/api/preferred-ips')) {
             const pathParts = path.split('/').filter(p => p);
-            if (pathParts.length >= 3 && pathParts[pathParts.length - 2] === 'api') {
+            if (pathParts.length >= 2 && pathParts[pathParts.length - 2] === 'api') {
                 const prefix = pathParts.slice(0, pathParts.length - 2).join('/');
                 let authorized = false;
                 if (adminUUID && prefix === adminUUID) {
                     authorized = true;
-                } else if (!adminUUID && isValidUUID(prefix)) {
+                } else if (!adminUUID && (isValidUUID(prefix) || prefix === '')) {
                     authorized = true;
                 }
 

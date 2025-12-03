@@ -369,16 +369,25 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
+        function getCurrentUUID() {
+            const path = window.location.pathname;
+            const pathUUID = path.split('/')[1];
+            if (pathUUID && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pathUUID)) {
+                return pathUUID;
+            }
+            return document.getElementById('uuid').value.trim();
+        }
+
         async function fetchUploadedIPs() {
-            const uuid = document.getElementById('uuid').value.trim();
-            if (!uuid) return showToast('请先填写 UUID');
+            const uuid = getCurrentUUID();
             
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '加载中...';
+            const btn = (typeof event !== 'undefined' && event && event.target) ? event.target : document.querySelector('button[onclick="fetchUploadedIPs()"]');
+            const originalText = btn ? btn.textContent : '刷新列表';
+            if (btn) btn.textContent = '加载中...';
             
             try {
-                const response = await fetch(`/${uuid}/api/preferred-ips`);
+                const apiPath = uuid ? `/${uuid}/api/preferred-ips` : '/api/preferred-ips';
+                const response = await fetch(apiPath);
                 if (!response.ok) throw new Error('获取失败');
                 const data = await response.json();
                 
@@ -410,9 +419,14 @@
             } catch (e) {
                 showToast(e.message);
             } finally {
-                btn.textContent = originalText;
+                if (btn) btn.textContent = originalText;
             }
         }
+
+        // 自动加载
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchUploadedIPs();
+        });
 
         async function clearUploadedIPs() {
             if (!confirm('确定要清空所有上传的IP吗？')) return;
@@ -537,4 +551,4 @@
     </script>
 </body>
 </html>
-<!-- Last updated: 2025-12-03 -->
+<!-- Last updated: 2025-12-04 -->
