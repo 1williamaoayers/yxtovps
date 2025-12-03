@@ -964,7 +964,7 @@ function generateHomePage(scuValue) {
             btn.textContent = '加载中...';
             
             try {
-                const response = await fetch(`/${uuid}/api/preferred-ips`);
+                const response = await fetch(\`/\${uuid}/api/preferred-ips\`);
                 if (!response.ok) throw new Error('获取失败');
                 const data = await response.json();
                 
@@ -982,17 +982,17 @@ function generateHomePage(scuValue) {
                         
                         const timeStr = item.addedAt ? new Date(item.addedAt).toLocaleString() : '-';
                         
-                        tr.innerHTML = `
-                            <td style="padding: 8px; font-family: monospace;">${item.ip}:${item.port}</td>
-                            <td style="padding: 8px;">${item.name}</td>
-                            <td style="padding: 8px; color: var(--text-sec); font-size: 12px;">${timeStr}</td>
-                        `;
+                        tr.innerHTML = \`
+                            <td style="padding: 8px; font-family: monospace;">\${item.ip}:\${item.port}</td>
+                            <td style="padding: 8px;">\${item.name}</td>
+                            <td style="padding: 8px; color: var(--text-sec); font-size: 12px;">\${timeStr}</td>
+                        \`;
                         tbody.appendChild(tr);
                     });
                 } else {
                      tbody.innerHTML = '<tr><td colspan="3" style="padding: 16px; text-align: center; color: var(--text-sec);">没有找到已上传的IP</td></tr>';
                 }
-                showToast(`加载成功，共 ${data.count} 个IP`);
+                showToast(\`加载成功，共 \${data.count} 个IP\`);
             } catch (e) {
                 showToast(e.message);
             } finally {
@@ -1007,7 +1007,7 @@ function generateHomePage(scuValue) {
             if (!uuid) return showToast('请先填写 UUID');
             
             try {
-                const response = await fetch(`/${uuid}/api/preferred-ips`, {
+                const response = await fetch(\`/\${uuid}/api/preferred-ips\`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ all: true })
