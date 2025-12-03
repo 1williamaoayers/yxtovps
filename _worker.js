@@ -11,6 +11,9 @@ let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
 let scu = 'https://url.v1.mk/sub';  // 订阅转换地址
+let kvStore = null;
+let kvConfig = {};
+let adminUUID = ''; // 管理员UUID，用于API验证
 
 // 默认优选域名列表
 const directDomains = [
@@ -38,6 +41,9 @@ function isValidUUID(str) {
 
 // 从环境变量获取配置
 function getConfigValue(key, defaultValue) {
+    if (kvConfig && kvConfig[key] !== undefined && kvConfig[key] !== '') {
+        return kvConfig[key];
+    }
     return defaultValue || '';
 }
 
@@ -391,6 +397,20 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     // 原生地址
     const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
     await addNodesFromList(nativeList);
+
+    // 自定义/本地优选IP (来自API上传)
+    if (customPreferredIPs && customPreferredIPs.length > 0) {
+        await addNodesFromList(customPreferredIPs);
+    }
+    if (customPreferredDomains && customPreferredDomains.length > 0) {
+        // 转换格式以匹配 addNodesFromList
+        const mappedDomains = customPreferredDomains.map(d => ({ 
+            ip: d.domain, 
+            port: d.port, 
+            isp: d.name 
+        }));
+        await addNodesFromList(mappedDomains);
+    }
 
     // 优选域名
     if (epd) {
@@ -1551,9 +1571,34 @@ function generateHomePage(scuValue) {
 // 主处理函数
 export default {
     async fetch(request, env, ctx) {
+        // 初始化KV和配置
+        await initKVStore(env);
+        adminUUID = env.UUID || '';
+        updateCustomPreferredFromYx();
+
         const url = new URL(request.url);
         const path = url.pathname;
         
+        // API 路由处理 (优选IP上传)
+        if (path.endsWith('/api/preferred-ips')) {
+            const pathParts = path.split('/').filter(p => p);
+            if (pathParts.length >= 3 && pathParts[pathParts.length - 2] === 'api') {
+                const prefix = pathParts.slice(0, pathParts.length - 2).join('/');
+                let authorized = false;
+                if (adminUUID && prefix === adminUUID) {
+                    authorized = true;
+                } else if (!adminUUID && isValidUUID(prefix)) {
+                    authorized = true;
+                }
+
+                if (authorized) {
+                    return await handlePreferredIPsAPI(request);
+                } else {
+                    return new Response(JSON.stringify({ error: 'Unauthorized', message: '路径验证失败' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
+            }
+        }
+
         // 主页
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
@@ -1695,4 +1740,200 @@ export default {
         return new Response('Not Found', { status: 404 });
     }
 };
+
+// KV存储相关函数
+async function initKVStore(env) {
+    if (env.C) {
+        try {
+            kvStore = env.C;
+            await loadKVConfig();
+        } catch (error) {
+            kvStore = null;
+        }
+    }
+}
+
+async function loadKVConfig() {
+    if (!kvStore) return;
+    try {
+        const configData = await kvStore.get('c');
+        if (configData) {
+            kvConfig = JSON.parse(configData);
+        }
+    } catch (error) {
+        kvConfig = {};
+    }
+}
+
+async function saveKVConfig() {
+    if (!kvStore) return;
+    try {
+        await kvStore.put('c', JSON.stringify(kvConfig));
+    } catch (error) {
+        console.error('保存KV配置失败:', error);
+    }
+}
+
+async function setConfigValue(key, value) {
+    kvConfig[key] = value;
+    await saveKVConfig();
+}
+
+// 优选IP处理API
+async function handlePreferredIPsAPI(request) {
+    if (!kvStore) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: 'KV存储未配置',
+            message: '需要配置KV存储才能使用此功能'
+        }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    try {
+        if (request.method === 'GET') {
+            const yxValue = getConfigValue('yx', '');
+            const pi = parseYxToArray(yxValue);
+            return new Response(JSON.stringify({
+                success: true,
+                count: pi.length,
+                data: pi
+            }), { headers: { 'Content-Type': 'application/json' } });
+
+        } else if (request.method === 'POST') {
+            const body = await request.json();
+            const ipsToAdd = Array.isArray(body) ? body : [body];
+
+            if (ipsToAdd.length === 0) {
+                return new Response(JSON.stringify({ success: false, error: '请求数据为空' }), { status: 400 });
+            }
+
+            const yxValue = getConfigValue('yx', '');
+            let pi = parseYxToArray(yxValue);
+            const addedIPs = [];
+
+            for (const item of ipsToAdd) {
+                if (!item.ip) continue;
+                const port = item.port || 443;
+                const name = item.name || `API优选-${item.ip}:${port}`;
+
+                if (!isValidIP(item.ip) && !isValidDomain(item.ip)) continue;
+
+                const exists = pi.some(existItem => existItem.ip === item.ip && existItem.port === port);
+                if (!exists) {
+                    const newIP = { ip: item.ip, port: port, name: name, addedAt: new Date().toISOString() };
+                    pi.push(newIP);
+                    addedIPs.push(newIP);
+                }
+            }
+
+            if (addedIPs.length > 0) {
+                const newYxValue = arrayToYx(pi);
+                await setConfigValue('yx', newYxValue);
+                updateCustomPreferredFromYx();
+            }
+
+            return new Response(JSON.stringify({
+                success: addedIPs.length > 0,
+                message: `成功添加 ${addedIPs.length} 个IP`,
+                added: addedIPs.length
+            }), { headers: { 'Content-Type': 'application/json' } });
+
+        } else if (request.method === 'DELETE') {
+            const body = await request.json();
+            if (body.all === true) {
+                await setConfigValue('yx', '');
+                updateCustomPreferredFromYx();
+                return new Response(JSON.stringify({ success: true, message: '已清空所有优选IP' }), { headers: { 'Content-Type': 'application/json' } });
+            }
+            // Delete specific IP logic if needed, but yx-tools mainly uses 'all' to clear before upload or just upload
+            // Wait, yx-tools uses delete all. I'll stick to that for now or implement full delete if needed.
+            // yx-tools code: delete_response = requests.delete(..., json={"all": True})
+            // So 'all' is sufficient for the main use case.
+            
+            return new Response(JSON.stringify({ success: false, message: '仅支持全部删除' }), { status: 400 });
+        }
+    } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500 });
+    }
+}
+
+// 辅助函数
+function isValidIP(ip) {
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+    const ipv6ShortRegex = /^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/;
+    return ipv4Regex.test(ip) || ipv6Regex.test(ip) || ipv6ShortRegex.test(ip);
+}
+
+function isValidDomain(domain) {
+    const domainRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+    return domainRegex.test(domain);
+}
+
+function parseAddressAndPort(input) {
+    if (input.includes('[') && input.includes(']')) {
+        const match = input.match(/^\[([^\]]+)\](?::(\d+))?$/);
+        if (match) return { address: match[1], port: match[2] ? parseInt(match[2], 10) : null };
+    }
+    const lastColonIndex = input.lastIndexOf(':');
+    if (lastColonIndex > 0) {
+        const address = input.substring(0, lastColonIndex);
+        const portStr = input.substring(lastColonIndex + 1);
+        const port = parseInt(portStr, 10);
+        if (!isNaN(port) && port > 0 && port <= 65535) return { address, port };
+    }
+    return { address: input, port: null };
+}
+
+function parseYxToArray(yxValue) {
+    if (!yxValue || !yxValue.trim()) return [];
+    const items = yxValue.split(',').map(item => item.trim()).filter(item => item);
+    const result = [];
+    for (const item of items) {
+        let nodeName = '';
+        let addressPart = item;
+        if (item.includes('#')) {
+            const parts = item.split('#');
+            addressPart = parts[0].trim();
+            nodeName = parts[1].trim();
+        }
+        const { address, port } = parseAddressAndPort(addressPart);
+        if (!nodeName) nodeName = address + (port ? ':' + port : '');
+        result.push({ ip: address, port: port || 443, name: nodeName });
+    }
+    return result;
+}
+
+function arrayToYx(array) {
+    if (!array || array.length === 0) return '';
+    return array.map(item => {
+        const port = item.port || 443;
+        return `${item.ip}:${port}#${item.name}`;
+    }).join(',');
+}
+
+function updateCustomPreferredFromYx() {
+    const yxValue = getConfigValue('yx', '');
+    if (yxValue) {
+        try {
+            const preferredList = parseYxToArray(yxValue);
+            customPreferredIPs = [];
+            customPreferredDomains = [];
+            preferredList.forEach(item => {
+                if (isValidIP(item.ip)) {
+                    customPreferredIPs.push({ ip: item.ip, port: item.port, isp: item.name });
+                } else {
+                    customPreferredDomains.push({ domain: item.ip, port: item.port, name: item.name });
+                }
+            });
+        } catch (err) {
+            customPreferredIPs = [];
+            customPreferredDomains = [];
+        }
+    } else {
+        customPreferredIPs = [];
+        customPreferredDomains = [];
+    }
+}
+
 

@@ -1,79 +1,130 @@
-# 服务器优选工具 - 简化版
+# Cloudflare Worker 优选 IP 订阅生成器 (All-in-One)
 
+这是一个完整的 Cloudflare 优选 IP 解决方案，包含服务端（Worker）和客户端（NAS/Docker）。
+它可以帮助你在本地（NAS/电脑）自动筛选最佳的 Cloudflare IP，并上传到你的 Worker，生成专属的优选 IP 订阅链接。
 
-## 功能特性
+## ✨ 功能特点
 
--  **优选域名**：自动使用内置的优选域名列表
--  **优选IP**：15分钟优选一次
--  **GitHub优选**：从 GitHub 仓库获取优选IP列表
--  **节点生成**：支持生成 Clash、Surge、Quantumult 等格式的订阅
--  **客户端选择**：支持 Clash、Surge、Quantumult X 等多种客户端格式
--  **IPv4/IPv6 选择**：可选择使用 IPv4 或 IPv6 优选IP
--  **运营商筛选**：支持按移动、联通、电信筛选优选IP
+- **服务端 (Worker)**: 
+  - 提供 VLESS/Trojan/VMess 订阅生成。
+  - 支持 KV 存储，接收并保存客户端上传的优选 IP。
+  - 提供 API 接口供客户端自动上传。
+  - 内置 UUID 认证，防止恶意篡改。
 
-## 使用方法
+- **客户端 (Docker)**: 
+  - 基于 CloudflareSpeedTest 的高性能测速。
+  - 自动筛选延迟最低、速度最快的 IP。
+  - **全自动模式**: 测速后自动通过 API 上传到服务端。
+  - 支持 Docker Compose 一键部署，适合 NAS 用户。
 
-### 1. 部署到 Cloudflare Workers
+---
 
-1. 登录 Cloudflare Dashboard
-2. 进入 Workers & Pages
-3. 创建新的 Worker
-4. 将 `worker.js` 的内容复制到编辑器
-5. 保存并部署
+## 🚀 部署指南 (保姆级教程)
 
-### 2. 使用界面
+### 第一步：部署服务端 (Cloudflare Worker)
 
+1. **注册/登录 Cloudflare**: 访问 [dash.cloudflare.com](https://dash.cloudflare.com)。
+2. **创建 Worker**:
+   - 点击左侧 "Workers & Pages" -> "Create Application" -> "Create Worker"。
+   - 命名为 `best-ip` (或者你喜欢的名字) -> "Deploy"。
+3. **部署代码**:
+   - 点击 "Edit code"。
+   - 将本项目根目录下的 `_worker.js` 内容完全复制并覆盖到编辑器中。
+   - 点击右上角 "Deploy"。
+4. **创建 KV 命名空间 (重要)**:
+   - 回到 Worker 详情页 (点击左上角名字返回)。
+   - 点击 "Settings" -> "Variables" -> "KV Namespace Bindings"。
+   - 点击 "Add Binding" -> "Create new KV Namespace"。
+   - 名字输入 `best-ip-kv` -> "Add"。
+   - **关键一步**: Variable name (变量名) 必须填 **`C`** (大写C)。
+   - 点击 "Save and deploy"。
+5. **设置 UUID (认证密钥)**:
+   - 在 "Settings" -> "Variables" -> "Environment Variables"。
+   - 点击 "Add Variable"。
+   - Variable name: `UUID`
+   - Value: 生成一个 UUID (可以在线生成，如 `550e8400-e29b-41d4-a716-446655440000`)。
+   - 点击 "Save and deploy"。
+6. **获取管理地址**:
+   - 你的管理地址格式为: `https://你的Worker域名/你的UUID`
+   - 例如: `https://best-ip.user.workers.dev/550e8400-e29b-41d4-a716-446655440000`
+   - 访问这个地址，你应该能看到控制面板。
 
-1. **输入域名**：输入您的 Cloudflare Workers 域名
-2. **输入UUID**：输入您的 UUID（格式：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）
-3. **配置选项**：
-   - 启用优选域名：使用内置的优选域名列表
-   - 启用优选IP：从 wetest.vip 获取动态IP
-   - 启用GitHub优选：从 GitHub 获取优选IP
-   - 客户端选择：选择订阅格式（Base64/Clash/Surge/Quantumult X）
-   - IP版本选择：选择使用 IPv4 或 IPv6
-   - 运营商选择：选择移动、联通、电信运营商
-4. **生成订阅**：点击"生成订阅链接"按钮
+---
 
-### 3. 订阅链接格式
+### 第二步：部署客户端 (NAS / Docker)
 
-生成的订阅链接格式为：
-```
-https://your-worker.workers.dev/{UUID}/sub?domain=your-domain.com&epd=yes&epi=yes&egi=yes
-```
+客户端负责在你本地网络环境下进行测速，并将结果告诉服务端。
 
-### 4. 支持的订阅格式
+1. **下载项目**:
+   - 下载本项目代码，解压。
+   - 找到 `yx-tools` 文件夹，将其上传到你的 NAS 或服务器。
 
-在订阅链接后添加 `&target=` 参数可以指定格式：
+2. **配置 Docker**:
+   - 打开 `yx-tools` 文件夹中的 `docker-compose.yml`。
+   - 确保配置如下 (初学者建议直接使用构建模式):
 
-- `&target=base64` - Base64 编码（默认）
-- `&target=clash` - Clash 配置
-- `&target=surge` - Surge 配置
-- `&target=quantumult` - Quantumult 配置
+   ```yaml
+   services:
+     cloudflare-speedtest:
+       image: ghcr.io/1williamaoayers/yx-tools:latest
+       container_name: cloudflare-speedtest
+       restart: unless-stopped
+       network_mode: host  # 建议使用 host 模式以获得更准确的测速结果
+       volumes:
+         - ./data:/app/data
+       environment:
+         - TZ=Asia/Shanghai
+         # 自动运行配置 (建议开启)
+         - CRON_SCHEDULE=0 */6 * * *  # 每6小时运行一次
+         # 填写你在第一步获取的管理地址 (用于自动上传)
+         # 注意：如果脚本未支持环境变量，请使用下方的交互模式
+         # - WORKER_URL=https://你的Worker域名/你的UUID
+       tty: true
+       stdin_open: true
+   ```
 
-## 配置说明
+3. **启动容器**:
+   - 在 `yx-tools` 目录下打开终端 (SSH)。
+   - 运行命令: `docker-compose up -d`
+   - 等待构建完成并启动。
 
-### 环境变量（可选）
+4. **首次运行与配置**:
+   - 查看日志或进入容器配置 (如果脚本需要交互):
+     `docker attach cloudflare-speedtest`
+   - 按照提示选择 "Cloudflare Workers API" 上报。
+   - 输入你的 Worker 管理地址。
+   - 配置完成后，程序会自动保存配置。
+   - 按 `Ctrl+P`, `Ctrl+Q` 退出容器但不停止它。
 
-无需配置环境变量，所有功能通过URL参数控制。
+---
 
-### URL 参数
+## 📖 使用说明
 
-- `domain`: 您的域名（必需）
-- `epd`: 启用优选域名（yes/no，默认：yes）
-- `epi`: 启用优选IP（yes/no，默认：yes）
-- `egi`: 启用GitHub优选（yes/no，默认：yes）
-- `piu`: 自定义优选IP来源URL（可选）
-- `target`: 订阅格式（base64/clash/surge/quantumult）
-- `ipv4`: 启用IPv4（yes/no，默认：yes）
-- `ipv6`: 启用IPv6（yes/no，默认：yes）
-- `ispMobile`: 启用移动运营商（yes/no，默认：yes）
-- `ispUnicom`: 启用联通运营商（yes/no，默认：yes）
-- `ispTelecom`: 启用电信运营商（yes/no，默认：yes）
+### 获取订阅链接
+部署好服务端并成功上传一次 IP 后，你可以使用以下格式的订阅链接：
 
-## 注意事项
+- **通用订阅**: `https://你的Worker域名/你的UUID/sub`
+- **Clash**: `https://你的Worker域名/你的UUID/sub?format=clash` (如果你的转换后端支持)
+- **指定优选**: 
+  - 默认使用你上传的优选 IP。
+  - 也可以手动指定: `...?domain=优选域名`
 
-1. **这不是代理工具**：此工具仅用于生成订阅链接，不提供代理功能
-2. **需要配合其他服务**：生成的节点需要配合其他代理服务使用
-3. **域名要求**：输入的域名应该是您实际使用的 服务器 域名
-4. **UUID格式**：UUID 必须是标准的 UUID v4 格式
+### 常见问题
+
+1. **为什么 Worker 提示 "KV存储未配置"?**
+   - 请检查第一步中是否正确绑定了 KV，且变量名必须为 `C`。
+
+2. **客户端测速很慢?**
+   - 确保 NAS 网络正常。
+   - 尝试在 `docker-compose.yml` 中启用 `network_mode: host`。
+
+3. **如何查看已上传的 IP?**
+   - 访问你的管理地址 `https://你的Worker域名/你的UUID`，在面板中可以查看当前生效的优选 IP 列表。
+
+---
+
+## 🛠️ 高级配置
+
+- **修改测速参数**: 编辑 `yx-tools/cloudflare_speedtest.py` 或相关配置文件。
+- **自定义优选域名**: 在 Worker 代码开头修改 `directDomains` 列表。
+
