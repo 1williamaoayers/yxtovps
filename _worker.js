@@ -552,141 +552,9 @@ function generateQuantumultConfig(links) {
     return btoa(links.join('\n'));
 }
 
-// 在线测试延迟 - 测试IP或域名的延迟
-async function testLatency(host, port = 443, timeout = 5000) {
-    const startTime = Date.now();
-    try {
-        // 解析地址和端口
-        let testHost = host;
-        let testPort = port;
-        
-        // 如果host包含端口，提取出来
-        if (host.includes(':')) {
-            const parts = host.split(':');
-            testHost = parts[0].replace(/[\[\]]/g, ''); // 移除IPv6的方括号
-            testPort = parseInt(parts[1]) || port;
-        }
-        
-        // 构建测试URL
-        const protocol = testPort === 443 || testPort === 8443 ? 'https' : 'http';
-        const testUrl = `${protocol}://${testHost}:${testPort}/cdn-cgi/trace`;
-        
-        // 使用AbortController控制超时
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
-        try {
-            const response = await fetch(testUrl, {
-                signal: controller.signal,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-            
-            clearTimeout(timeoutId);
-            
-            const responseTime = Date.now() - startTime;
-            
-            if (response.ok) {
-                const text = await response.text();
-                const ipMatch = text.match(/ip=([^\s]+)/);
-                const locMatch = text.match(/loc=([^\s]+)/);
-                const coloMatch = text.match(/colo=([^\s]+)/);
-                
-                return {
-                    success: true,
-                    host: host,
-                    port: testPort,
-                    latency: responseTime,
-                    ip: ipMatch ? ipMatch[1] : null,
-                    location: locMatch ? locMatch[1] : null,
-                    colo: coloMatch ? coloMatch[1] : null
-                };
-            } else {
-                return {
-                    success: false,
-                    host: host,
-                    port: testPort,
-                    latency: responseTime,
-                    error: `HTTP ${response.status}`
-                };
-            }
-        } catch (fetchError) {
-            clearTimeout(timeoutId);
-            const responseTime = Date.now() - startTime;
-            
-            if (fetchError.name === 'AbortError') {
-                return {
-                    success: false,
-                    host: host,
-                    port: testPort,
-                    latency: timeout,
-                    error: '请求超时'
-                };
-            }
-            
-            return {
-                success: false,
-                host: host,
-                port: testPort,
-                latency: responseTime,
-                error: fetchError.message || '连接失败'
-            };
-        }
-    } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-            success: false,
-            host: host,
-            port: port,
-            latency: responseTime,
-            error: error.message || '未知错误'
-        };
-    }
-}
 
-// 批量测试延迟
-async function batchTestLatency(hosts, port = 443, timeout = 5000, concurrency = 5) {
-    const results = [];
-    const chunks = [];
-    
-    // 将hosts分成多个批次
-    for (let i = 0; i < hosts.length; i += concurrency) {
-        chunks.push(hosts.slice(i, i + concurrency));
-    }
-    
-    // 按批次测试
-    for (const chunk of chunks) {
-        const chunkResults = await Promise.allSettled(
-            chunk.map(host => testLatency(host, port, timeout))
-        );
-        
-        chunkResults.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-                results.push(result.value);
-            } else {
-                results.push({
-                    success: false,
-                    host: chunk[index],
-                    port: port,
-                    latency: timeout,
-                    error: result.reason?.message || '测试失败'
-                });
-            }
-        });
-    }
-    
-    // 按延迟排序
-    results.sort((a, b) => {
-        if (a.success && !b.success) return -1;
-        if (!a.success && b.success) return 1;
-        return a.latency - b.latency;
-    });
-    
-    return results;
-}
 
-// 生成iOS 26风格的主页
+// 生成现代极简风格主页
 function generateHomePage(scuValue) {
     const scu = scuValue || 'https://url.v1.mk/sub';
     return `<!DOCTYPE html>
@@ -694,505 +562,343 @@ function generateHomePage(scuValue) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>服务器优选工具</title>
+    <title>Cloudflare 优选订阅</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+        :root {
+            --primary: #007aff;
+            --bg: #1c1c1e;
+            --card-bg: rgba(44, 44, 46, 0.8);
+            --text: #f5f5f7;
+            --text-sec: #98989d;
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            --input-bg: rgba(255, 255, 255, 0.1);
+            --success: #32d74b;
+            --error: #ff453a;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(180deg, #f5f5f7 0%, #ffffff 100%);
-            color: #1d1d1f;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-            overflow-x: hidden;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
             padding: 20px;
+            transition: background 0.3s;
         }
-        
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding-bottom: 40px;
+        }
+
         .header {
             text-align: center;
-            padding: 40px 20px 30px;
+            padding: 40px 0;
         }
-        
+
         .header h1 {
-            font-size: 34px;
+            font-size: 28px;
             font-weight: 700;
-            letter-spacing: -0.5px;
-            color: #1d1d1f;
             margin-bottom: 8px;
+            background: linear-gradient(135deg, #007aff, #5856d6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        
-        .header p {
-            font-size: 17px;
-            color: #86868b;
-            font-weight: 400;
-        }
-        
+
         .card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 20px;
             padding: 24px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
-            border: 0.5px solid rgba(0, 0, 0, 0.04);
-        }
-        
-        .form-group {
             margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         }
-        
-        .form-group label {
-            display: block;
+
+        .section-title {
             font-size: 13px;
             font-weight: 600;
-            color: #86868b;
-            margin-bottom: 8px;
+            color: var(--text-sec);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
         }
-        
-        .form-group input {
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        input, textarea {
             width: 100%;
-            padding: 14px 16px;
-            font-size: 17px;
-            font-weight: 400;
-            color: #1d1d1f;
-            background: rgba(142, 142, 147, 0.12);
+            padding: 12px 16px;
+            background: var(--input-bg);
             border: none;
             border-radius: 12px;
+            font-size: 16px;
+            color: var(--text);
             outline: none;
-            transition: all 0.2s ease;
-            -webkit-appearance: none;
+            transition: 0.2s;
         }
-        
-        .form-group input:focus {
-            background: rgba(142, 142, 147, 0.16);
-            transform: scale(1.01);
+
+        input:focus, textarea:focus {
+            box-shadow: 0 0 0 2px var(--primary);
+            background: transparent;
         }
-        
-        .form-group input::placeholder {
-            color: #86868b;
-        }
-        
-        .switch-group {
+
+        .row {
             display: flex;
-            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .col { flex: 1; }
+
+        .switch-row {
+            display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 12px 0;
+            border-bottom: 1px solid var(--border);
         }
         
-        .switch-group label {
-            font-size: 17px;
-            font-weight: 400;
-            color: #1d1d1f;
-            text-transform: none;
-            letter-spacing: 0;
-        }
-        
+        .switch-row:last-child { border-bottom: none; }
+
         .switch {
             position: relative;
-            width: 51px;
-            height: 31px;
-            background: rgba(142, 142, 147, 0.3);
-            border-radius: 16px;
-            transition: background 0.3s ease;
+            width: 50px;
+            height: 30px;
+            background: var(--input-bg);
+            border-radius: 15px;
             cursor: pointer;
+            transition: 0.3s;
         }
-        
-        .switch.active {
-            background: #34c759;
-        }
-        
+
+        .switch.active { background: var(--success); }
+
         .switch::after {
             content: '';
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 27px;
-            height: 27px;
-            background: #ffffff;
+            width: 26px;
+            height: 26px;
+            background: white;
             border-radius: 50%;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        
-        .switch.active::after {
-            transform: translateX(20px);
-        }
-        
+
+        .switch.active::after { transform: translateX(20px); }
+
         .btn {
             width: 100%;
-            padding: 16px;
-            font-size: 17px;
-            font-weight: 600;
-            color: #ffffff;
-            background: #007aff;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
             border: none;
             border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
-            margin-top: 8px;
-            -webkit-appearance: none;
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+            transition: 0.2s;
         }
+
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
         
-        .btn:active {
-            transform: scale(0.98);
-            opacity: 0.8;
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
         }
-        
-        .btn-secondary {
-            background: rgba(142, 142, 147, 0.12);
-            color: #007aff;
-            box-shadow: none;
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
         }
-        
-        .btn-secondary:active {
-            background: rgba(142, 142, 147, 0.2);
-        }
-        
-        .result {
-            margin-top: 20px;
-            padding: 16px;
-            background: rgba(142, 142, 147, 0.12);
+
+        .client-card {
+            background: var(--input-bg);
+            padding: 12px 8px;
             border-radius: 12px;
-            font-size: 15px;
-            color: #1d1d1f;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .client-card:active { transform: scale(0.96); }
+
+        .result-box {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--input-bg);
+            border-radius: 12px;
+            font-size: 14px;
             word-break: break-all;
             display: none;
         }
         
-        .result.show {
-            display: block;
-        }
-        
-        .result-url {
-            margin-top: 12px;
-            padding: 12px;
-            background: rgba(0, 122, 255, 0.1);
-            border-radius: 8px;
-            font-size: 13px;
-            color: #007aff;
-            word-break: break-all;
-        }
-        
-        .copy-btn {
-            margin-top: 8px;
-            padding: 10px 16px;
-            font-size: 15px;
-            background: rgba(0, 122, 255, 0.1);
-            color: #007aff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        
-        .client-btn {
-            padding: 12px 10px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #007aff;
-            background: rgba(0, 122, 255, 0.1);
-            border: 1px solid rgba(0, 122, 255, 0.2);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            -webkit-appearance: none;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
-        }
-        
-        .client-btn:active {
-            transform: scale(0.98);
-            background: rgba(0, 122, 255, 0.2);
-        }
-        
-        .checkbox-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            font-size: 17px;
-            font-weight: 400;
-            user-select: none;
-            -webkit-user-select: none;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .checkbox-label input[type="checkbox"] {
-            margin-right: 8px;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            flex-shrink: 0;
-            position: relative;
-            z-index: 2;
-            -webkit-appearance: checkbox;
-            appearance: checkbox;
-        }
-        
-        .checkbox-label span {
-            cursor: pointer;
-            position: relative;
-            z-index: 1;
-        }
-        
-        @media (max-width: 480px) {
-            .client-btn {
-                font-size: 12px;
-                padding: 10px 8px;
-            }
-        }
-        
+        .result-box.success { border-left: 4px solid var(--success); }
+        .result-box.error { border-left: 4px solid var(--error); }
+
         .footer {
             text-align: center;
-            padding: 30px 20px;
-            color: #86868b;
+            margin-top: 40px;
+            color: var(--text-sec);
             font-size: 13px;
         }
         
-        .footer a {
-            transition: opacity 0.2s ease;
+        .footer a { color: var(--primary); text-decoration: none; }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            z-index: 1000;
+            transition: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            backdrop-filter: blur(10px);
         }
         
-        .footer a:active {
-            opacity: 0.6;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: linear-gradient(180deg, #000000 0%, #1c1c1e 100%);
-                color: #f5f5f7;
-            }
-            
-            .card {
-                background: rgba(28, 28, 30, 0.8);
-                border: 0.5px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .form-group input {
-                background: rgba(142, 142, 147, 0.2);
-                color: #f5f5f7;
-            }
-            
-            .form-group input:focus {
-                background: rgba(142, 142, 147, 0.25);
-            }
-            
-            .switch-group label {
-                color: #f5f5f7;
-            }
-            
-            .result {
-                background: rgba(142, 142, 147, 0.2);
-                color: #f5f5f7;
-            }
-            
-            select {
-                background: rgba(142, 142, 147, 0.2) !important;
-                color: #f5f5f7 !important;
-            }
-            
-            label span {
-                color: #f5f5f7;
-            }
-            
-            .client-btn {
-                background: rgba(0, 122, 255, 0.15) !important;
-                border-color: rgba(0, 122, 255, 0.3) !important;
-                color: #5ac8fa !important;
-            }
-            
-            .footer a {
-                color: #5ac8fa !important;
-            }
-            
-            textarea {
-                background: rgba(142, 142, 147, 0.2) !important;
-                color: #f5f5f7 !important;
-            }
-            
-            textarea::placeholder {
-                color: #86868b !important;
-            }
-            
-            #testResult, #batchTestResult {
-                color: #f5f5f7 !important;
-            }
-            
-            #testResult div, #batchTestResult div {
-                color: #f5f5f7 !important;
-            }
-        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
+    <div class="toast" id="toast">Notification</div>
+
     <div class="container">
         <div class="header">
-            <h1>服务器优选工具</h1>
-            <p>智能优选 • 一键生成</p>
+            <h1>Cloudflare Preferred</h1>
         </div>
-        
+
         <div class="card">
-            <div class="form-group">
-                <label>域名</label>
-                <input type="text" id="domain" placeholder="请输入您的域名">
+            <div class="section-title">基础配置</div>
+            <div class="input-group">
+                <label class="input-label">Worker 域名</label>
+                <input type="text" id="domain" placeholder="例如: cdn.example.com">
+            </div>
+            <div class="input-group">
+                <label class="input-label">UUID</label>
+                <input type="text" id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </div>
+            <div class="input-group">
+                <label class="input-label">自定义路径 (可选)</label>
+                <input type="text" id="customPath" placeholder="/" value="/">
             </div>
             
-            <div class="form-group">
-                <label>UUID</label>
-                <input type="text" id="uuid" placeholder="请输入UUID">
-            </div>
-            
-            <div class="form-group">
-                <label>WebSocket路径（可选）</label>
-                <input type="text" id="customPath" placeholder="留空则使用默认路径 /" value="/">
-                <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">自定义WebSocket路径，例如：/v2ray 或 /</small>
-            </div>
-            
-            <div class="switch-group">
-                <label>启用优选域名</label>
+            <div class="switch-row">
+                <span>优选域名</span>
                 <div class="switch active" id="switchDomain" onclick="toggleSwitch('switchDomain')"></div>
             </div>
-            
-            <div class="switch-group">
-                <label>启用优选IP</label>
+            <div class="switch-row">
+                <span>优选 IP</span>
                 <div class="switch active" id="switchIP" onclick="toggleSwitch('switchIP')"></div>
             </div>
-            
-            <div class="switch-group">
-                <label>启用GitHub优选</label>
+            <div class="switch-row">
+                <span>GitHub 优选</span>
                 <div class="switch active" id="switchGitHub" onclick="toggleSwitch('switchGitHub')"></div>
             </div>
-            
-            <div class="form-group" id="githubUrlGroup" style="margin-top: 12px;">
-                <label>GitHub优选URL（可选）</label>
-                <input type="text" id="githubUrl" placeholder="留空则使用默认地址" style="font-size: 15px;">
-                <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">自定义优选IP列表来源URL，留空则使用默认地址</small>
+             <div class="input-group" id="githubUrlGroup" style="margin-top: 12px;">
+                <input type="text" id="githubUrl" placeholder="自定义 GitHub 优选 URL (可选)">
             </div>
-            
-            <div class="form-group" style="margin-top: 24px;">
-                <label>协议选择</label>
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
-                    <div class="switch-group">
-                        <label>VLESS (vl)</label>
-                        <div class="switch active" id="switchVL" onclick="toggleSwitch('switchVL')"></div>
-                    </div>
-                    <div class="switch-group">
-                        <label>Trojan (tj)</label>
-                        <div class="switch" id="switchTJ" onclick="toggleSwitch('switchTJ')"></div>
-                    </div>
-                    <div class="switch-group">
-                        <label>VMess (vm)</label>
-                        <div class="switch" id="switchVM" onclick="toggleSwitch('switchVM')"></div>
-                    </div>
-                </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">本地上传 IP (yx-tools)</div>
+            <div class="row">
+                <button class="btn btn-outline" onclick="fetchUploadedIPs()">刷新列表</button>
+                <button class="btn btn-outline" style="border-color: var(--error); color: var(--error);" onclick="clearUploadedIPs()">清空列表</button>
             </div>
-            
-            <div class="form-group" style="margin-top: 24px;">
-                <label>客户端选择</label>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 8px;">
-                    <button type="button" class="client-btn" onclick="generateClientLink('clash', 'CLASH')">CLASH</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('clash', 'STASH')">STASH</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('surge', 'SURGE')">SURGE</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('sing-box', 'SING-BOX')">SING-BOX</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('loon', 'LOON')">LOON</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('quanx', 'QUANTUMULT X')" style="font-size: 13px;">QUANTUMULT X</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('v2ray', 'V2RAY')">V2RAY</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('v2ray', 'V2RAYNG')">V2RAYNG</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('v2ray', 'NEKORAY')">NEKORAY</button>
-                    <button type="button" class="client-btn" onclick="generateClientLink('v2ray', 'Shadowrocket')" style="font-size: 13px;">Shadowrocket</button>
-                </div>
-                <div class="result-url" id="clientSubscriptionUrl" style="display: none; margin-top: 12px; padding: 12px; background: rgba(0, 122, 255, 0.1); border-radius: 8px; font-size: 13px; color: #007aff; word-break: break-all;"></div>
+            <div style="overflow-x: auto; margin-top: 12px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text);">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 1px solid var(--border);">
+                            <th style="padding: 8px;">IP:端口</th>
+                            <th style="padding: 8px;">备注</th>
+                            <th style="padding: 8px;">上传时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="uploadedIPsTableBody">
+                        <tr><td colspan="3" style="padding: 16px; text-align: center; color: var(--text-sec);">暂无数据，请点击刷新</td></tr>
+                    </tbody>
+                </table>
             </div>
-            
-            <div class="form-group">
-                <label>IP版本选择</label>
-                <div style="display: flex; gap: 16px; margin-top: 8px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="ipv4Enabled" checked>
-                        <span>IPv4</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="ipv6Enabled" checked>
-                        <span>IPv6</span>
-                    </label>
-                </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">协议与选项</div>
+            <div class="switch-row">
+                <span>VLESS</span>
+                <div class="switch active" id="switchVL" onclick="toggleSwitch('switchVL')"></div>
             </div>
-            
-            <div class="form-group">
-                <label>运营商选择</label>
-                <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="ispMobile" checked>
-                        <span>移动</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="ispUnicom" checked>
-                        <span>联通</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="ispTelecom" checked>
-                        <span>电信</span>
-                    </label>
-                </div>
+            <div class="switch-row">
+                <span>Trojan</span>
+                <div class="switch" id="switchTJ" onclick="toggleSwitch('switchTJ')"></div>
             </div>
-            
-            <div class="switch-group" style="margin-top: 20px;">
-                <label>仅TLS节点</label>
+            <div class="switch-row">
+                <span>VMess</span>
+                <div class="switch" id="switchVM" onclick="toggleSwitch('switchVM')"></div>
+            </div>
+             <div class="switch-row">
+                <span>仅 TLS</span>
                 <div class="switch" id="switchTLS" onclick="toggleSwitch('switchTLS')"></div>
             </div>
-            <small style="display: block; margin-top: -12px; margin-bottom: 12px; color: #86868b; font-size: 13px; padding-left: 0;">启用后只生成带TLS的节点，不生成非TLS节点（如80端口）</small>
-        </div>
-        
-        <div class="card" style="margin-top: 16px;">
-            <div class="form-group">
-                <label>在线延迟测试</label>
-                <input type="text" id="testHost" placeholder="输入IP或域名，例如: 1.1.1.1 或 example.com" style="margin-bottom: 12px;">
-                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                    <input type="number" id="testPort" placeholder="端口" value="443" style="flex: 1; min-width: 0;">
-                    <input type="number" id="testTimeout" placeholder="超时(ms)" value="5000" style="flex: 1; min-width: 0;">
-                </div>
-                <button type="button" class="btn btn-secondary" onclick="testSingleLatency()" id="testBtn" style="margin-top: 0;">测试延迟</button>
-                <div id="testResult" style="display: none; margin-top: 12px; padding: 12px; background: rgba(142, 142, 147, 0.12); border-radius: 8px; font-size: 14px;"></div>
-            </div>
             
-            <div class="form-group" style="margin-top: 24px;">
-                <label>批量测试延迟</label>
-                <textarea id="batchTestHosts" placeholder="每行一个IP或域名，例如：&#10;1.1.1.1&#10;1.0.0.1&#10;example.com" style="width: 100%; padding: 14px 16px; font-size: 15px; font-weight: 400; color: #1d1d1f; background: rgba(142, 142, 147, 0.12); border: none; border-radius: 12px; outline: none; resize: vertical; min-height: 100px; font-family: inherit;"></textarea>
-                <div style="display: flex; gap: 10px; margin-top: 12px;">
-                    <input type="number" id="batchTestPort" placeholder="端口" value="443" style="flex: 1; min-width: 0;">
-                    <input type="number" id="batchTestTimeout" placeholder="超时(ms)" value="5000" style="flex: 1; min-width: 0;">
-                </div>
-                <button type="button" class="btn btn-secondary" onclick="testBatchLatency()" id="batchTestBtn" style="margin-top: 12px;">批量测试</button>
-                <div id="batchTestResult" style="display: none; margin-top: 12px; max-height: 400px; overflow-y: auto;"></div>
+            <div class="row" style="margin-top: 12px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                    <input type="checkbox" id="ipv4Enabled" checked style="width:auto;"> IPv4
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                    <input type="checkbox" id="ipv6Enabled" checked style="width:auto;"> IPv6
+                </label>
             </div>
         </div>
-        
+
+        <div class="card">
+            <div class="section-title">一键导入客户端</div>
+            <div class="grid">
+                <div class="client-card" onclick="generateClientLink('clash', 'CLASH')">CLASH</div>
+                <div class="client-card" onclick="generateClientLink('clash', 'STASH')">STASH</div>
+                <div class="client-card" onclick="generateClientLink('surge', 'SURGE')">SURGE</div>
+                <div class="client-card" onclick="generateClientLink('sing-box', 'SING-BOX')">SING-BOX</div>
+                <div class="client-card" onclick="generateClientLink('loon', 'LOON')">LOON</div>
+                <div class="client-card" onclick="generateClientLink('quanx', 'Quant X')">Quantumult X</div>
+                <div class="client-card" onclick="generateClientLink('v2ray', 'V2RAY')">V2RAY</div>
+                <div class="client-card" onclick="generateClientLink('v2ray', 'Shadowrocket')">Shadowrocket</div>
+            </div>
+            <div id="clientSubscriptionUrl" class="result-box"></div>
+        </div>
+
         <div class="footer">
-            <p>简化版优选工具 • 仅用于节点生成</p>
-            <div style="margin-top: 20px; display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
-                <a href="https://github.com/byJoey/cfnew" target="_blank" style="color: #007aff; text-decoration: none; font-size: 15px; font-weight: 500;">GitHub 项目</a>
-                <a href="https://www.youtube.com/@joeyblog" target="_blank" style="color: #007aff; text-decoration: none; font-size: 15px; font-weight: 500;">YouTube @joeyblog</a>
+            <p>Powered by Cloudflare Workers</p>
+            <div style="margin-top: 10px;">
+                <a href="https://github.com/byJoey/cfnew" target="_blank">GitHub</a> • 
+                <a href="https://www.youtube.com/@joeyblog" target="_blank">YouTube</a>
             </div>
         </div>
     </div>
-    
+
     <script>
         let switches = {
             switchDomain: true,
@@ -1203,366 +909,187 @@ function generateHomePage(scuValue) {
             switchVM: false,
             switchTLS: false
         };
-        
+
         function toggleSwitch(id) {
             const switchEl = document.getElementById(id);
             switches[id] = !switches[id];
             switchEl.classList.toggle('active');
         }
-        
-        
-        // 订阅转换地址（从服务器注入）
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 订阅转换地址
         const SUB_CONVERTER_URL = "${ scu }";
-        
-        function tryOpenApp(schemeUrl, fallbackCallback, timeout) {
-            timeout = timeout || 2500;
+
+        function tryOpenApp(schemeUrl, fallbackCallback, timeout = 2500) {
             let appOpened = false;
             let callbackExecuted = false;
             const startTime = Date.now();
             
             const blurHandler = () => {
-                const elapsed = Date.now() - startTime;
-                if (elapsed < 3000 && !callbackExecuted) {
-                    appOpened = true;
-                }
+                if (Date.now() - startTime < 3000 && !callbackExecuted) appOpened = true;
             };
             
             window.addEventListener('blur', blurHandler);
-            
-            const hiddenHandler = () => {
-                const elapsed = Date.now() - startTime;
-                if (elapsed < 3000 && !callbackExecuted) {
-                    appOpened = true;
-                }
-            };
-            
-            document.addEventListener('visibilitychange', hiddenHandler);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && Date.now() - startTime < 3000 && !callbackExecuted) appOpened = true;
+            });
             
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
-            iframe.style.width = '1px';
-            iframe.style.height = '1px';
             iframe.src = schemeUrl;
             document.body.appendChild(iframe);
             
             setTimeout(() => {
-                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                document.body.removeChild(iframe);
                 window.removeEventListener('blur', blurHandler);
-                document.removeEventListener('visibilitychange', hiddenHandler);
-                
                 if (!callbackExecuted) {
                     callbackExecuted = true;
-                    if (!appOpened && fallbackCallback) {
-                        fallbackCallback();
-                    }
+                    if (!appOpened && fallbackCallback) fallbackCallback();
                 }
             }, timeout);
         }
-        
+
+                async function fetchUploadedIPs() {
+            const uuid = document.getElementById('uuid').value.trim();
+            if (!uuid) return showToast('请先填写 UUID');
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '加载中...';
+            
+            try {
+                const response = await fetch(`/${uuid}/api/preferred-ips`);
+                if (!response.ok) throw new Error('获取失败');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('uploadedIPsTableBody');
+                tbody.innerHTML = '';
+                
+                if (data.data && data.data.length > 0) {
+                    data.data.sort((a, b) => {
+                        return (new Date(b.addedAt || 0)) - (new Date(a.addedAt || 0));
+                    });
+
+                    data.data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid var(--border)';
+                        
+                        const timeStr = item.addedAt ? new Date(item.addedAt).toLocaleString() : '-';
+                        
+                        tr.innerHTML = `
+                            <td style="padding: 8px; font-family: monospace;">${item.ip}:${item.port}</td>
+                            <td style="padding: 8px;">${item.name}</td>
+                            <td style="padding: 8px; color: var(--text-sec); font-size: 12px;">${timeStr}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                     tbody.innerHTML = '<tr><td colspan="3" style="padding: 16px; text-align: center; color: var(--text-sec);">没有找到已上传的IP</td></tr>';
+                }
+                showToast(`加载成功，共 ${data.count} 个IP`);
+            } catch (e) {
+                showToast(e.message);
+            } finally {
+                btn.textContent = originalText;
+            }
+        }
+
+        async function clearUploadedIPs() {
+            if (!confirm('确定要清空所有上传的IP吗？')) return;
+            
+            const uuid = document.getElementById('uuid').value.trim();
+            if (!uuid) return showToast('请先填写 UUID');
+            
+            try {
+                const response = await fetch(`/${uuid}/api/preferred-ips`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ all: true })
+                });
+                if (response.ok) {
+                    showToast('已清空');
+                    fetchUploadedIPs();
+                } else {
+                    showToast('清空失败');
+                }
+            } catch (e) {
+                showToast('请求错误');
+            }
+        }
+
         function generateClientLink(clientType, clientName) {
             const domain = document.getElementById('domain').value.trim();
             const uuid = document.getElementById('uuid').value.trim();
             const customPath = document.getElementById('customPath').value.trim() || '/';
             
-            if (!domain || !uuid) {
-                alert('请先填写域名和UUID');
-                return;
-            }
-            
-            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
-                alert('UUID格式不正确');
-                return;
-            }
-            
-            // 检查至少选择一个协议
-            if (!switches.switchVL && !switches.switchTJ && !switches.switchVM) {
-                alert('请至少选择一个协议（VLESS、Trojan或VMess）');
-                return;
-            }
-            
+            if (!domain || !uuid) return showToast('请填写域名和 UUID');
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) return showToast('UUID 格式错误');
+            if (!switches.switchVL && !switches.switchTJ && !switches.switchVM) return showToast('请至少选择一个协议');
+
             const ipv4Enabled = document.getElementById('ipv4Enabled').checked;
             const ipv6Enabled = document.getElementById('ipv6Enabled').checked;
-            const ispMobile = document.getElementById('ispMobile').checked;
-            const ispUnicom = document.getElementById('ispUnicom').checked;
-            const ispTelecom = document.getElementById('ispTelecom').checked;
-            
             const githubUrl = document.getElementById('githubUrl').value.trim();
             
             const currentUrl = new URL(window.location.href);
-            const baseUrl = currentUrl.origin;
-            let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
+            let subscriptionUrl = \`\${currentUrl.origin}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain?'yes':'no'}&epi=\${switches.switchIP?'yes':'no'}&egi=\${switches.switchGitHub?'yes':'no'}\`;
             
-            // 添加GitHub优选URL
-            if (githubUrl) {
-                subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
-            }
-            
-            // 添加协议选择
+            if (githubUrl) subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
             if (switches.switchVL) subscriptionUrl += '&ev=yes';
             if (switches.switchTJ) subscriptionUrl += '&et=yes';
             if (switches.switchVM) subscriptionUrl += '&vm=yes';
-            
             if (!ipv4Enabled) subscriptionUrl += '&ipv4=no';
             if (!ipv6Enabled) subscriptionUrl += '&ipv6=no';
-            if (!ispMobile) subscriptionUrl += '&ispMobile=no';
-            if (!ispUnicom) subscriptionUrl += '&ispUnicom=no';
-            if (!ispTelecom) subscriptionUrl += '&ispTelecom=no';
-            
-            // 添加TLS控制
             if (switches.switchTLS) subscriptionUrl += '&dkby=yes';
-            
-            // 添加自定义路径
-            if (customPath && customPath !== '/') {
-                subscriptionUrl += \`&path=\${encodeURIComponent(customPath)}\`;
-            }
-            
+            if (customPath !== '/') subscriptionUrl += \`&path=\${encodeURIComponent(customPath)}\`;
+
             let finalUrl = subscriptionUrl;
             let schemeUrl = '';
-            let displayName = clientName || '';
-            
+
+            const copyToClipboard = (url, name) => {
+                navigator.clipboard.writeText(url).then(() => showToast(\`\${name} 订阅链接已复制\`));
+            };
+
             if (clientType === 'v2ray') {
-                finalUrl = subscriptionUrl;
                 const urlElement = document.getElementById('clientSubscriptionUrl');
                 urlElement.textContent = finalUrl;
                 urlElement.style.display = 'block';
                 
                 if (clientName === 'V2RAY') {
-                    navigator.clipboard.writeText(finalUrl).then(() => {
-                        alert(displayName + ' 订阅链接已复制');
-                    });
-                } else if (clientName === 'Shadowrocket') {
-                    schemeUrl = 'shadowrocket://add/' + encodeURIComponent(finalUrl);
-                    tryOpenApp(schemeUrl, () => {
-                        navigator.clipboard.writeText(finalUrl).then(() => {
-                            alert(displayName + ' 订阅链接已复制');
-                        });
-                    });
-                } else if (clientName === 'V2RAYNG') {
-                    schemeUrl = 'v2rayng://install?url=' + encodeURIComponent(finalUrl);
-                    tryOpenApp(schemeUrl, () => {
-                        navigator.clipboard.writeText(finalUrl).then(() => {
-                            alert(displayName + ' 订阅链接已复制');
-                        });
-                    });
-                } else if (clientName === 'NEKORAY') {
-                    schemeUrl = 'nekoray://install-config?url=' + encodeURIComponent(finalUrl);
-                    tryOpenApp(schemeUrl, () => {
-                        navigator.clipboard.writeText(finalUrl).then(() => {
-                            alert(displayName + ' 订阅链接已复制');
-                        });
-                    });
+                    copyToClipboard(finalUrl, clientName);
+                } else {
+                    if (clientName === 'Shadowrocket') schemeUrl = 'shadowrocket://add/' + encodeURIComponent(finalUrl);
+                    else if (clientName === 'V2RAYNG') schemeUrl = 'v2rayng://install?url=' + encodeURIComponent(finalUrl);
+                    else if (clientName === 'NEKORAY') schemeUrl = 'nekoray://install-config?url=' + encodeURIComponent(finalUrl);
+                    
+                    if (schemeUrl) tryOpenApp(schemeUrl, () => copyToClipboard(finalUrl, clientName));
                 }
             } else {
                 const encodedUrl = encodeURIComponent(subscriptionUrl);
-                finalUrl = SUB_CONVERTER_URL + '?target=' + clientType + '&url=' + encodedUrl + '&insert=false&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true';
+                finalUrl = \`\${SUB_CONVERTER_URL}?target=\${clientType}&url=\${encodedUrl}&insert=false&emoji=true&list=false&xudp=false&udp=false&tfo=false&expand=true&scv=false&fdn=false&new_name=true\`;
                 
                 const urlElement = document.getElementById('clientSubscriptionUrl');
                 urlElement.textContent = finalUrl;
                 urlElement.style.display = 'block';
-                
-                if (clientType === 'clash') {
-                    if (clientName === 'STASH') {
-                        schemeUrl = 'stash://install?url=' + encodeURIComponent(finalUrl);
-                        displayName = 'STASH';
-                    } else {
-                        schemeUrl = 'clash://install-config?url=' + encodeURIComponent(finalUrl);
-                        displayName = 'CLASH';
-                    }
-                } else if (clientType === 'surge') {
-                    schemeUrl = 'surge:///install-config?url=' + encodeURIComponent(finalUrl);
-                    displayName = 'SURGE';
-                } else if (clientType === 'sing-box') {
-                    schemeUrl = 'sing-box://install-config?url=' + encodeURIComponent(finalUrl);
-                    displayName = 'SING-BOX';
-                } else if (clientType === 'loon') {
-                    schemeUrl = 'loon://install?url=' + encodeURIComponent(finalUrl);
-                    displayName = 'LOON';
-                } else if (clientType === 'quanx') {
-                    schemeUrl = 'quantumult-x://install-config?url=' + encodeURIComponent(finalUrl);
-                    displayName = 'QUANTUMULT X';
-                }
-                
-                if (schemeUrl) {
-                    tryOpenApp(schemeUrl, () => {
-                        navigator.clipboard.writeText(finalUrl).then(() => {
-                            alert(displayName + ' 订阅链接已复制');
-                        });
-                    });
-                } else {
-                    navigator.clipboard.writeText(finalUrl).then(() => {
-                        alert(displayName + ' 订阅链接已复制');
-                    });
-                }
+
+                if (clientType === 'clash') schemeUrl = \`clash://install-config?url=\${encodeURIComponent(finalUrl)}\`;
+                else if (clientType === 'surge') schemeUrl = \`surge:///install-config?url=\${encodeURIComponent(finalUrl)}\`;
+                else if (clientType === 'sing-box') schemeUrl = \`sing-box://install-config?url=\${encodeURIComponent(finalUrl)}\`;
+                else if (clientType === 'loon') schemeUrl = \`loon://install?url=\${encodeURIComponent(finalUrl)}\`;
+                else if (clientType === 'quanx') schemeUrl = \`quantumult-x://install-config?url=\${encodeURIComponent(finalUrl)}\`;
+
+                if (schemeUrl) tryOpenApp(schemeUrl, () => copyToClipboard(finalUrl, clientName));
+                else copyToClipboard(finalUrl, clientName);
             }
         }
-        
-        // 单个延迟测试
-        async function testSingleLatency() {
-            const host = document.getElementById('testHost').value.trim();
-            const port = parseInt(document.getElementById('testPort').value) || 443;
-            const timeout = parseInt(document.getElementById('testTimeout').value) || 5000;
-            const testBtn = document.getElementById('testBtn');
-            const testResult = document.getElementById('testResult');
-            
-            if (!host) {
-                alert('请输入要测试的IP或域名');
-                return;
-            }
-            
-            testBtn.disabled = true;
-            testBtn.textContent = '测试中...';
-            testResult.style.display = 'none';
-            
-            try {
-                const currentUrl = new URL(window.location.href);
-                const baseUrl = currentUrl.origin;
-                const testUrl = \`\${baseUrl}/test?host=\${encodeURIComponent(host)}&port=\${port}&timeout=\${timeout}\`;
-                
-                const response = await fetch(testUrl);
-                const result = await response.json();
-                
-                testResult.style.display = 'block';
-                
-                if (result.success) {
-                    testResult.innerHTML = \`
-                        <div style="color: #34c759; font-weight: 600; margin-bottom: 8px;">✓ 测试成功</div>
-                        <div style="color: #1d1d1f; margin-bottom: 4px;"><strong>延迟:</strong> \${result.latency}ms</div>
-                        \${result.ip ? \`<div style="color: #1d1d1f; margin-bottom: 4px;"><strong>IP:</strong> \${result.ip}</div>\` : ''}
-                        \${result.location ? \`<div style="color: #1d1d1f; margin-bottom: 4px;"><strong>位置:</strong> \${result.location}</div>\` : ''}
-                        \${result.colo ? \`<div style="color: #1d1d1f;"><strong>数据中心:</strong> \${result.colo}</div>\` : ''}
-                    \`;
-                    testResult.style.background = 'rgba(52, 199, 89, 0.1)';
-                } else {
-                    testResult.innerHTML = \`
-                        <div style="color: #ff3b30; font-weight: 600; margin-bottom: 8px;">✗ 测试失败</div>
-                        <div style="color: #1d1d1f; margin-bottom: 4px;"><strong>延迟:</strong> \${result.latency}ms</div>
-                        <div style="color: #1d1d1f;"><strong>错误:</strong> \${result.error || '未知错误'}</div>
-                    \`;
-                    testResult.style.background = 'rgba(255, 59, 48, 0.1)';
-                }
-            } catch (error) {
-                testResult.style.display = 'block';
-                testResult.innerHTML = \`
-                    <div style="color: #ff3b30; font-weight: 600;">✗ 测试失败</div>
-                    <div style="color: #1d1d1f; margin-top: 4px;">\${error.message || '网络错误'}</div>
-                \`;
-                testResult.style.background = 'rgba(255, 59, 48, 0.1)';
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = '测试延迟';
-            }
-        }
-        
-        // 批量延迟测试
-        async function testBatchLatency() {
-            const hostsText = document.getElementById('batchTestHosts').value.trim();
-            const port = parseInt(document.getElementById('batchTestPort').value) || 443;
-            const timeout = parseInt(document.getElementById('batchTestTimeout').value) || 5000;
-            const batchTestBtn = document.getElementById('batchTestBtn');
-            const batchTestResult = document.getElementById('batchTestResult');
-            
-            if (!hostsText) {
-                alert('请输入要测试的IP或域名列表');
-                return;
-            }
-            
-            const hosts = hostsText.split('\\n')
-                .map(line => line.trim())
-                .filter(line => line.length > 0);
-            
-            if (hosts.length === 0) {
-                alert('请输入至少一个IP或域名');
-                return;
-            }
-            
-            batchTestBtn.disabled = true;
-            batchTestBtn.textContent = \`测试中... (0/\${hosts.length})\`;
-            batchTestResult.style.display = 'none';
-            batchTestResult.innerHTML = '';
-            
-            try {
-                const currentUrl = new URL(window.location.href);
-                const baseUrl = currentUrl.origin;
-                
-                const response = await fetch(\`\${baseUrl}/batch-test\`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        hosts: hosts,
-                        port: port,
-                        timeout: timeout,
-                        concurrency: 5
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    batchTestResult.style.display = 'block';
-                    let html = \`
-                        <div style="padding: 12px; background: rgba(142, 142, 147, 0.12); border-radius: 8px; margin-bottom: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 4px;">测试完成</div>
-                            <div style="font-size: 13px; color: #86868b;">成功: \${data.successCount} / 总计: \${data.total}</div>
-                        </div>
-                    \`;
-                    
-                    data.results.forEach((result, index) => {
-                        const bgColor = result.success ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)';
-                        const statusColor = result.success ? '#34c759' : '#ff3b30';
-                        const statusText = result.success ? '✓' : '✗';
-                        
-                        html += \`
-                            <div style="padding: 12px; background: \${bgColor}; border-radius: 8px; margin-bottom: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <div style="font-weight: 600; color: \${statusColor};">\${statusText} \${result.host}:\${result.port}</div>
-                                    <div style="font-weight: 600; color: #1d1d1f;">\${result.latency}ms</div>
-                                </div>
-                                \${result.success ? \`
-                                    \${result.ip ? \`<div style="font-size: 13px; color: #86868b;">IP: \${result.ip}</div>\` : ''}
-                                    \${result.location ? \`<div style="font-size: 13px; color: #86868b;">位置: \${result.location}</div>\` : ''}
-                                    \${result.colo ? \`<div style="font-size: 13px; color: #86868b;">数据中心: \${result.colo}</div>\` : ''}
-                                \` : \`
-                                    <div style="font-size: 13px; color: #ff3b30;">错误: \${result.error || '未知错误'}</div>
-                                \`}
-                            </div>
-                        \`;
-                    });
-                    
-                    batchTestResult.innerHTML = html;
-                } else {
-                    batchTestResult.style.display = 'block';
-                    batchTestResult.innerHTML = \`
-                        <div style="padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; color: #ff3b30;">
-                            测试失败: \${data.error || '未知错误'}
-                        </div>
-                    \`;
-                }
-            } catch (error) {
-                batchTestResult.style.display = 'block';
-                batchTestResult.innerHTML = \`
-                    <div style="padding: 12px; background: rgba(255, 59, 48, 0.1); border-radius: 8px; color: #ff3b30;">
-                        网络错误: \${error.message || '未知错误'}
-                    </div>
-                \`;
-            } finally {
-                batchTestBtn.disabled = false;
-                batchTestBtn.textContent = '批量测试';
-            }
-        }
-        
-        // 支持回车键触发测试
-        document.addEventListener('DOMContentLoaded', function() {
-            const testHostInput = document.getElementById('testHost');
-            if (testHostInput) {
-                testHostInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        testSingleLatency();
-                    }
-                });
-            }
-        });
+
+
+
     </script>
 </body>
 </html>`;
@@ -1607,92 +1134,7 @@ export default {
             });
         }
         
-        // 在线测试延迟 API: /test?host=xxx&port=443
-        if (path === '/test') {
-            const host = url.searchParams.get('host');
-            const port = parseInt(url.searchParams.get('port') || '443');
-            const timeout = parseInt(url.searchParams.get('timeout') || '5000');
-            
-            if (!host) {
-                return new Response(JSON.stringify({ 
-                    success: false, 
-                    error: '缺少host参数' 
-                }), {
-                    status: 400,
-                    headers: { 'Content-Type': 'application/json; charset=utf-8' }
-                });
-            }
-            
-            const result = await testLatency(host, port, timeout);
-            return new Response(JSON.stringify(result, null, 2), {
-                headers: { 
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type'
-                }
-            });
-        }
-        
-        // 批量测试延迟 API: /batch-test
-        if (path === '/batch-test') {
-            if (request.method === 'OPTIONS') {
-                return new Response(null, {
-                    headers: {
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                        'Access-Control-Allow-Headers': 'Content-Type'
-                    }
-                });
-            }
-            
-            if (request.method === 'POST') {
-                try {
-                    const body = await request.json();
-                    const hosts = body.hosts || [];
-                    const port = parseInt(body.port || '443');
-                    const timeout = parseInt(body.timeout || '5000');
-                    const concurrency = parseInt(body.concurrency || '5');
-                    
-                    if (!Array.isArray(hosts) || hosts.length === 0) {
-                        return new Response(JSON.stringify({ 
-                            success: false, 
-                            error: 'hosts必须是非空数组' 
-                        }), {
-                            status: 400,
-                            headers: { 
-                                'Content-Type': 'application/json; charset=utf-8',
-                                'Access-Control-Allow-Origin': '*'
-                            }
-                        });
-                    }
-                    
-                    const results = await batchTestLatency(hosts, port, timeout, concurrency);
-                    return new Response(JSON.stringify({ 
-                        success: true, 
-                        results: results,
-                        total: results.length,
-                        successCount: results.filter(r => r.success).length
-                    }, null, 2), {
-                        headers: { 
-                            'Content-Type': 'application/json; charset=utf-8',
-                            'Access-Control-Allow-Origin': '*'
-                        }
-                    });
-                } catch (error) {
-                    return new Response(JSON.stringify({ 
-                        success: false, 
-                        error: error.message 
-                    }), {
-                        status: 500,
-                        headers: { 
-                            'Content-Type': 'application/json; charset=utf-8',
-                            'Access-Control-Allow-Origin': '*'
-                        }
-                    });
-                }
-            }
-        }
+
         
         // 订阅请求格式: /{UUID}/sub?domain=xxx&epd=yes&epi=yes&egi=yes
         const pathMatch = path.match(/^\/([^\/]+)\/sub$/);
@@ -1845,10 +1287,6 @@ async function handlePreferredIPsAPI(request) {
                 updateCustomPreferredFromYx();
                 return new Response(JSON.stringify({ success: true, message: '已清空所有优选IP' }), { headers: { 'Content-Type': 'application/json' } });
             }
-            // Delete specific IP logic if needed, but yx-tools mainly uses 'all' to clear before upload or just upload
-            // Wait, yx-tools uses delete all. I'll stick to that for now or implement full delete if needed.
-            // yx-tools code: delete_response = requests.delete(..., json={"all": True})
-            // So 'all' is sufficient for the main use case.
             
             return new Response(JSON.stringify({ success: false, message: '仅支持全部删除' }), { status: 400 });
         }
@@ -1892,14 +1330,22 @@ function parseYxToArray(yxValue) {
     for (const item of items) {
         let nodeName = '';
         let addressPart = item;
-        if (item.includes('#')) {
-            const parts = item.split('#');
+        let addedAt = '';
+
+        if (item.includes('|')) {
+            const parts = item.split('|');
+            addressPart = parts[0].trim();
+            addedAt = parts[1].trim();
+        }
+
+        if (addressPart.includes('#')) {
+            const parts = addressPart.split('#');
             addressPart = parts[0].trim();
             nodeName = parts[1].trim();
         }
         const { address, port } = parseAddressAndPort(addressPart);
         if (!nodeName) nodeName = address + (port ? ':' + port : '');
-        result.push({ ip: address, port: port || 443, name: nodeName });
+        result.push({ ip: address, port: port || 443, name: nodeName, addedAt: addedAt });
     }
     return result;
 }
@@ -1908,7 +1354,11 @@ function arrayToYx(array) {
     if (!array || array.length === 0) return '';
     return array.map(item => {
         const port = item.port || 443;
-        return `${item.ip}:${port}#${item.name}`;
+        let str = `${item.ip}:${port}#${item.name}`;
+        if (item.addedAt) {
+            str += `|${item.addedAt}`;
+        }
+        return str;
     }).join(',');
 }
 
@@ -1935,5 +1385,3 @@ function updateCustomPreferredFromYx() {
         customPreferredDomains = [];
     }
 }
-
-
