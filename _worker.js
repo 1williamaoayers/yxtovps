@@ -86,6 +86,7 @@ async function fetchDynamicIPs(ipv4Enabled = true, ipv6Enabled = true, ispMobile
         return [];
     }
 }
+// Last updated: 2025-12-03
 
 // 解析wetest页面
 async function fetchAndParseWetest(url) {
