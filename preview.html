@@ -260,6 +260,10 @@
                 <span>GitHub 优选</span>
                 <div class="switch active" id="switchGitHub" onclick="toggleSwitch('switchGitHub')"></div>
             </div>
+            <div class="switch-row">
+                <span>本地上传 IP</span>
+                <div class="switch active" id="switchAPI" onclick="toggleSwitch('switchAPI')"></div>
+            </div>
              <div class="input-group" id="githubUrlGroup" style="margin-top: 12px;">
                 <input type="text" id="githubUrl" placeholder="自定义 GitHub 优选 URL (可选)">
             </div>
@@ -345,6 +349,7 @@
             switchDomain: true,
             switchIP: true,
             switchGitHub: true,
+            switchAPI: true,
             switchVL: true,
             switchTJ: false,
             switchVM: false,
@@ -478,7 +483,7 @@
             const githubUrl = document.getElementById('githubUrl').value.trim();
             
             const currentUrl = new URL(window.location.href);
-            let subscriptionUrl = `${currentUrl.origin}/${uuid}/sub?domain=${encodeURIComponent(domain)}&epd=${switches.switchDomain?'yes':'no'}&epi=${switches.switchIP?'yes':'no'}&egi=${switches.switchGitHub?'yes':'no'}`;
+            let subscriptionUrl = `${currentUrl.origin}/${uuid}/sub?domain=${encodeURIComponent(domain)}&epd=${switches.switchDomain?'yes':'no'}&epi=${switches.switchIP?'yes':'no'}&egi=${switches.switchGitHub?'yes':'no'}&eapi=${switches.switchAPI?'yes':'no'}`;
             
             if (githubUrl) subscriptionUrl += `&piu=${encodeURIComponent(githubUrl)}`;
             if (switches.switchVL) subscriptionUrl += '&ev=yes';

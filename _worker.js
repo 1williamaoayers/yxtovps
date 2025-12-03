@@ -7,6 +7,7 @@ let customPreferredDomains = [];
 let epd = true;  // 启用优选域名
 let epi = true;  // 启用优选IP
 let egi = true;  // 启用GitHub优选
+let eapi = true; // 启用本地上传IP (API)
 let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
@@ -399,17 +400,19 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     await addNodesFromList(nativeList);
 
     // 自定义/本地优选IP (来自API上传)
-    if (customPreferredIPs && customPreferredIPs.length > 0) {
-        await addNodesFromList(customPreferredIPs);
-    }
-    if (customPreferredDomains && customPreferredDomains.length > 0) {
-        // 转换格式以匹配 addNodesFromList
-        const mappedDomains = customPreferredDomains.map(d => ({ 
-            ip: d.domain, 
-            port: d.port, 
-            isp: d.name 
-        }));
-        await addNodesFromList(mappedDomains);
+    if (eapi) {
+        if (customPreferredIPs && customPreferredIPs.length > 0) {
+            await addNodesFromList(customPreferredIPs);
+        }
+        if (customPreferredDomains && customPreferredDomains.length > 0) {
+            // 转换格式以匹配 addNodesFromList
+            const mappedDomains = customPreferredDomains.map(d => ({ 
+                ip: d.domain, 
+                port: d.port, 
+                isp: d.name 
+            }));
+            await addNodesFromList(mappedDomains);
+        }
     }
 
     // 优选域名
@@ -555,7 +558,7 @@ function generateQuantumultConfig(links) {
 
 
 // 生成现代极简风格主页
-function generateHomePage(scuValue) {
+function generateHomePage(scuValue, defaultUUID = '') {
     const scu = scuValue || 'https://url.v1.mk/sub';
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -800,7 +803,7 @@ function generateHomePage(scuValue) {
             </div>
             <div class="input-group">
                 <label class="input-label">UUID</label>
-                <input type="text" id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                <input type="text" id="uuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${defaultUUID}">
             </div>
             <div class="input-group">
                 <label class="input-label">自定义路径 (可选)</label>
@@ -818,6 +821,10 @@ function generateHomePage(scuValue) {
             <div class="switch-row">
                 <span>GitHub 优选</span>
                 <div class="switch active" id="switchGitHub" onclick="toggleSwitch('switchGitHub')"></div>
+            </div>
+            <div class="switch-row">
+                <span>本地上传 IP</span>
+                <div class="switch active" id="switchAPI" onclick="toggleSwitch('switchAPI')"></div>
             </div>
              <div class="input-group" id="githubUrlGroup" style="margin-top: 12px;">
                 <input type="text" id="githubUrl" placeholder="自定义 GitHub 优选 URL (可选)">
@@ -904,6 +911,7 @@ function generateHomePage(scuValue) {
             switchDomain: true,
             switchIP: true,
             switchGitHub: true,
+            switchAPI: true,
             switchVL: true,
             switchTJ: false,
             switchVM: false,
@@ -1037,7 +1045,7 @@ function generateHomePage(scuValue) {
             const githubUrl = document.getElementById('githubUrl').value.trim();
             
             const currentUrl = new URL(window.location.href);
-            let subscriptionUrl = \`\${currentUrl.origin}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain?'yes':'no'}&epi=\${switches.switchIP?'yes':'no'}&egi=\${switches.switchGitHub?'yes':'no'}\`;
+            let subscriptionUrl = \`\${currentUrl.origin}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain?'yes':'no'}&epi=\${switches.switchIP?'yes':'no'}&egi=\${switches.switchGitHub?'yes':'no'}&eapi=\${switches.switchAPI?'yes':'no'}\`;
             
             if (githubUrl) subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
             if (switches.switchVL) subscriptionUrl += '&ev=yes';
@@ -1127,11 +1135,22 @@ export default {
         }
 
         // 主页
-        if (path === '/' || path === '') {
+        if (adminUUID && path === `/${adminUUID}`) {
             const scuValue = env?.scu || scu;
-            return new Response(generateHomePage(scuValue), {
+            return new Response(generateHomePage(scuValue, adminUUID), {
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
             });
+        }
+
+        if (!adminUUID && (path === '/' || path === '')) {
+            const scuValue = env?.scu || scu;
+            return new Response(generateHomePage(scuValue, ''), {
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            });
+        }
+
+        if (path === '/' || path === '') {
+             return new Response('Access Denied: Please use your UUID path.', { status: 403 });
         }
         
 
@@ -1154,6 +1173,7 @@ export default {
             epd = url.searchParams.get('epd') !== 'no';
             epi = url.searchParams.get('epi') !== 'no';
             egi = url.searchParams.get('egi') !== 'no';
+            eapi = url.searchParams.get('eapi') !== 'no';
             const piu = url.searchParams.get('piu') || defaultIPURL;
             
             // 协议选择
