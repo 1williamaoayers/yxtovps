@@ -53,73 +53,115 @@
 
 ### 第二步：部署客户端 (NAS / Docker)
 
-客户端负责在你本地网络环境下进行测速，并将结果告诉服务端。
+客户端负责在你本地网络环境下进行测速，并将结果告诉服务端。这里提供最简单、适合小白的部署方式（参考自 [yx-tools](https://github.com/1williamaoayers/yx-tools)）。
 
-1. **下载项目**:
-   - 下载本项目代码，解压。
-   - 找到 `yx-tools` 文件夹，将其上传到你的 NAS 或服务器。
+> **特别说明**：我们的镜像已经集成了所有主流设备架构（包括 x86/amd64 的普通电脑、arm64 的树莓派/Mac、以及 arm32 的玩客云等），**Docker 会自动识别你的设备并拉取正确的版本**。
 
-2. **配置 Docker**:
-   - 打开 `yx-tools` 文件夹中的 `docker-compose.yml`。
-   - 确保配置如下 (初学者建议直接使用构建模式):
+#### 方法一：后台运行 + 定时任务 (最推荐)
 
-   ```yaml
-   services:
-     cloudflare-speedtest:
-       image: ghcr.io/1williamaoayers/yx-tools:latest
-       container_name: cloudflare-speedtest
-       restart: unless-stopped
-       network_mode: host  # 建议使用 host 模式以获得更准确的测速结果
-       volumes:
-         - ./data:/app/data
-       environment:
-         - TZ=Asia/Shanghai
-         # 自动运行配置 (建议开启)
-         - CRON_SCHEDULE=0 */6 * * *  # 每6小时运行一次
-         # 填写你在第一步获取的管理地址 (用于自动上传)
-         # 注意：如果脚本未支持环境变量，请使用下方的交互模式
-         # - WORKER_URL=https://你的Worker域名/你的UUID
-       tty: true
-       stdin_open: true
-   ```
+适合长期挂在 **NAS、树莓派、软路由** 上，每天自动测速并上传结果。
 
-3. **启动容器**:
-   - 在 `yx-tools` 目录下打开终端 (SSH)。
-   - 运行命令: `docker-compose up -d`
-   - 等待构建完成并启动。
+**1. 默认部署 (推荐)**
+直接在 SSH 终端中运行以下命令（数据会保存在当前目录下）：
 
-4. **首次运行与配置**:
-   - 查看日志或进入容器配置 (如果脚本需要交互):
-     `docker attach cloudflare-speedtest`
-   - 按照提示选择 "Cloudflare Workers API" 上报。
-   - 输入你的 Worker 管理地址。
-   - 配置完成后，程序会自动保存配置。
-   - 按 `Ctrl+P`, `Ctrl+Q` 退出容器但不停止它。
+```bash
+# 启动容器（后台运行，重启自动恢复）
+# ⚠️ 注意：务必挂载 config 目录，否则重建容器后定时任务会丢失！
+docker run -d --name cloudflare-speedtest \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/config:/app/config \
+  --restart unless-stopped \
+  --network host \
+  ghcr.io/1williamaoayers/yx-tools:latest
+```
+*注：建议加上 `--network host` 以获得更准确的测速结果。*
+
+**2. 自定义目录部署 (想放哪里放哪里)**
+如果你想指定数据存放位置（例如 `/home/yx`）：
+
+1.  先创建文件夹：
+    ```bash
+    mkdir -p /home/yx
+    ```
+2.  运行命令：
+    ```bash
+    docker run -d --name cloudflare-speedtest \
+      -v /home/yx/data:/app/data \
+      -v /home/yx/config:/app/config \
+      --restart unless-stopped \
+      --network host \
+      ghcr.io/1williamaoayers/yx-tools:latest
+    ```
+
+#### 方法二：Docker Compose (NAS 用户常用)
+
+如果你习惯使用 Portainer 或 Docker Compose：
+
+```yaml
+version: '3.8'
+services:
+  cloudflare-speedtest:
+    image: ghcr.io/1williamaoayers/yx-tools:latest
+    container_name: cloudflare-speedtest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - TZ=Asia/Shanghai
+    tty: true
+    stdin_open: true
+```
 
 ---
 
-## 📖 使用说明
+### 第三步：配置自动上传
 
-### 获取订阅链接
-部署好服务端并成功上传一次 IP 后，你可以使用以下格式的订阅链接：
+无论你用哪种方式启动了容器，都需要进行一次初始化配置，告诉客户端把结果上传到哪里。
 
-- **通用订阅**: `https://你的Worker域名/你的UUID/sub`
-- **Clash**: `https://你的Worker域名/你的UUID/sub?format=clash` (如果你的转换后端支持)
-- **指定优选**: 
-  - 默认使用你上传的优选 IP。
-  - 也可以手动指定: `...?domain=优选域名`
+1.  **进入容器配置菜单**:
+    在 SSH 终端运行：
+    ```bash
+    docker exec -it cloudflare-speedtest python3 /app/cloudflare_speedtest.py
+    ```
 
-### 常见问题
+2.  **设置上传地址**:
+    - 菜单中选择 **"5. 结果上报设置"** (或类似选项)。
+    - 选择 **"Cloudflare Workers API"**。
+    - 输入你在 **第一步** 获取的 **Worker 管理地址** (例如 `https://my-worker.dev/my-uuid`)。
+    - 确认保存。
 
-1. **为什么 Worker 提示 "KV存储未配置"?**
-   - 请检查第一步中是否正确绑定了 KV，且变量名必须为 `C`。
+3.  **设置定时任务**:
+    - 再次运行配置命令 (如果你退出了)。
+    - 选择 **"4. 设置定时任务"**。
+    - 按提示选择时间（例如每天凌晨 4 点），脚本会自动设置好 Cron 任务。
 
-2. **客户端测速很慢?**
-   - 确保 NAS 网络正常。
-   - 尝试在 `docker-compose.yml` 中启用 `network_mode: host`。
+---
 
-3. **如何查看已上传的 IP?**
-   - 访问你的管理地址 `https://你的Worker域名/你的UUID`，在面板中可以查看当前生效的优选 IP 列表。
+## ❓ 常见问题 (FAQ) & 避坑指南
+
+**Q: 启动容器后为什么没有出现配置菜单？/ 日志提示"检测到非交互式环境"？**
+A: 这是因为使用了 `-d` 参数让容器在**后台静默运行**。
+- **正确做法**：先让容器在后台跑着，然后通过命令 `docker exec -it cloudflare-speedtest python3 /app/cloudflare_speedtest.py` 进入容器进行配置。
+
+**Q: 怎么看每天有没有自动测速？**
+A: 有两种方法：
+1. **查看容器日志** (推荐)：
+   ```bash
+   docker logs --tail 50 cloudflare-speedtest
+   ```
+2. **查看 Worker 面板**：
+   访问你的 Worker 管理地址，看 "最后更新时间" 是否变化。
+
+**Q: 我是玩客云/机顶盒 (ARM32)，需要自己下载二进制文件吗？**
+A: **完全不需要！** Docker 镜像已经内置了专门为 ARM32 编译好的核心组件，自动识别架构。
+
+**Q: 为什么 Worker 提示 "KV存储未配置"?**
+A: 请检查 Cloudflare 后台 Worker 设置中，是否正确绑定了 KV 命名空间，且变量名必须为 `C`。
+
+**Q: 客户端测速很慢?**
+A: 确保 NAS/服务器网络正常；尝试在启动命令或 Compose 中启用 `host` 网络模式 (`--network host`)。
 
 ---
 
