@@ -143,7 +143,8 @@ services:
 
 **Q: 启动容器后为什么没有出现配置菜单？/ 日志提示"检测到非交互式环境"？**
 A: 这是因为使用了 `-d` 参数让容器在**后台静默运行**。
-- **正确做法**：先让容器在后台跑着，然后通过命令 `docker exec -it cloudflare-speedtest python3 /app/cloudflare_speedtest.py` 进入容器进行配置。
+- **正确做法**：先让容器在后台跑着，然后通过命令 `docker exec -it cf-speedtest python3 /app/cloudflare_speedtest.py
+` 进入容器进行配置。
 
 **Q: 怎么看每天有没有自动测速？**
 A: 有两种方法：
