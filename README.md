@@ -123,7 +123,7 @@ services:
 1.  **进入容器配置菜单**:
     在 SSH 终端运行：
     ```bash
-    docker exec -it cloudflare-speedtest python3 /app/cloudflare_speedtest.py
+    docker exec -it cf-speedtest python3 /app/cloudflare_speedtest.py
     ```
 
 2.  **设置上传地址**:
