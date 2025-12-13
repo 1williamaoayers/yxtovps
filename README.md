@@ -150,7 +150,7 @@ A: 这是因为使用了 `-d` 参数让容器在**后台静默运行**。
 A: 有两种方法：
 1. **查看容器日志** (推荐)：
    ```bash
-   docker logs --tail 50 cloudflare-speedtest
+   docker logs --tail 50 cf-speedtest
    ```
 2. **查看 Worker 面板**：
    访问你的 Worker 管理地址，看 "最后更新时间" 是否变化。
