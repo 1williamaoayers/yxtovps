@@ -1,0 +1,16 @@
+[
+  {
+    "worker": "joeyblog.up88.qzz.io",
+    "uuid": "9803eff1-883e-40b7-a89f-562de43bbe2c",
+    "status": "success",
+    "message": "成功添加: 10 个",
+    "timestamp": "2026-01-20 14:46:41"
+  },
+  {
+    "worker": "yx.cdx.hidns.co",
+    "uuid": "ab82c26c-c59b-48ec-8950-dfd67df5c859",
+    "status": "success",
+    "message": "成功添加: 10 个",
+    "timestamp": "2026-01-20 14:46:47"
+  }
+]

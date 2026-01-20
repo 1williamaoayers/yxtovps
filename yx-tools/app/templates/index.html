@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare 优选 IP 管理面板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+        }
+
+        pre {
+            background: #212529;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .form-label {
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+            font-weight: 600;
+        }
+
+        .form-text {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2 class="mb-4 text-center">🚀 Cloudflare 优选 IP 管理面板</h2>
+
+        <div class="row">
+            <!-- 配置区域 -->
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">⚙️ 核心配置</div>
+                    <div class="card-body">
+                        <form id="configForm">
+                            <div class="mb-3">
+                                <label class="form-label">Worker 订阅/管理 URL</label>
+                                <textarea class="form-control" id="worker_urls" rows="3"
+                                    placeholder="https://example.com/uuid-key&#10;https://example2.com/uuid-key2"></textarea>
+                                <div class="form-text">直接粘贴完整的订阅链接，支持多行。结果将自动上传到这些节点。</div>
+                            </div>
+
+                            <hr class="my-3">
+                            <h6 class="mb-3 text-muted">测速参数</h6>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">下载速度下限 (MB/s)</label>
+                                    <input type="number" class="form-control" id="speed" value="5">
+                                    <div class="form-text">低于此速度的 IP 将被丢弃。建议 1-10。</div>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">测试数量 (Count)</label>
+                                    <input type="number" class="form-control" id="count" value="20">
+                                    <div class="form-text">总测速 IP 数量。越多越准但越慢。</div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">延迟阈值 (ms)</label>
+                                    <input type="number" class="form-control" id="delay" value="300">
+                                    <div class="form-text">只保留延迟低于此值的 IP。一般建议 300-1000。</div>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">上传数量 (Top N)</label>
+                                    <input type="number" class="form-control" id="upload_count" value="20">
+                                    <div class="form-text">取测速结果最好的前 N 个 IP 上传。</div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label">线程数 (Thread)</label>
+                                    <input type="number" class="form-control" id="thread" value="200">
+                                    <div class="form-text">并发数。高性能设 500+，路由建议 200。</div>
+                                </div>
+                                <div class="col-6 mb-3 d-flex align-items-center">
+                                    <div class="form-check form-switch mt-3">
+                                        <input class="form-check-input" type="checkbox" id="ipv6">
+                                        <label class="form-check-label" for="ipv6">启用 IPv6 测速</label>
+                                        <div class="form-text">仅在网络支持 IPv6 时开启。</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">定时任务 (Cron 表达式)</label>
+                                <input type="text" class="form-control" id="cron_schedule" value="0 4 * * *"
+                                    placeholder="分 时 日 月 周">
+                                <div class="form-text">格式: 分 时 日 月 周。例: "0 4 * * *" (每天凌晨4点)</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">💾 保存所有配置</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">🎮 手动控制</div>
+                    <div class="card-body text-center">
+                        <button id="runBtn" class="btn btn-success btn-lg w-100 mb-2">▶ 立即运行测速</button>
+                        <div id="statusAlert" class="alert alert-secondary mb-0 py-2 small" role="alert">
+                            状态: <span id="statusText">等待运行</span>
+                            <span id="lastRunTime" class="ms-2 badge bg-light text-dark border"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果区域 -->
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>📊 优选结果 (自动刷新)</span>
+                        <span class="badge bg-info text-dark" id="resultCount">0 个结果</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-striped table-hover mb-0 text-center" style="font-size: 14px;">
+                                <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                                    <tr>
+                                        <th>IP:端口</th>
+                                        <th>速度 (MB/s)</th>
+                                        <th>延迟 (ms)</th>
+                                        <th>地区</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsBody">
+                                    <tr>
+                                        <td colspan="4" class="p-3">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">📝 运行日志 (实时 - 自动滚动到底部)</div>
+                    <div class="card-body p-0">
+                        <pre id="logArea" style="height: 300px; margin: 0; border-radius: 0 0 5px 5px;">暂无日志...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                document.getElementById('worker_urls').value = data.worker_urls || '';
+                document.getElementById('speed').value = data.speed || 5;
+                document.getElementById('count').value = data.count || 20;
+                document.getElementById('delay').value = data.delay || 300;
+                document.getElementById('upload_count').value = data.upload_count || 20;
+                document.getElementById('thread').value = data.thread || 200;
+                document.getElementById('cron_schedule').value = data.cron_schedule || '0 4 * * *';
+                document.getElementById('ipv6').checked = data.ipv6 || false;
+            } catch (e) { console.error(e); }
+        }
+
+        // 保存配置
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const config = {
+                worker_urls: document.getElementById('worker_urls').value,
+                speed: parseFloat(document.getElementById('speed').value),
+                count: parseInt(document.getElementById('count').value),
+                delay: parseInt(document.getElementById('delay').value),
+                upload_count: parseInt(document.getElementById('upload_count').value),
+                thread: parseInt(document.getElementById('thread').value),
+                cron_schedule: document.getElementById('cron_schedule').value,
+                ipv6: document.getElementById('ipv6').checked
+            };
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            alert('配置已保存！定时任务已更新。');
+        });
+
+        // 手动运行
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('runBtn');
+            const originalText = btn.innerHTML;
+
+            // Remove confirm dialog for better UX
+            // if (!confirm('确定要立即开始测速吗？这可能需要几分钟。')) return;
+
+            // Visual feedback immediately
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 正在启动...';
+
+            try {
+                await fetch('/api/run', { method: 'POST' });
+
+                // Update status display
+                const statusBadge = document.getElementById('statusAlert');
+                statusBadge.className = 'alert alert-info mb-0 py-2 small';
+                document.getElementById('statusText').textContent = '🚀 任务已启动，请稍候...';
+
+                // Reset button after short delay
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }, 2000);
+            } catch (e) {
+                alert('请求失败: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+
+        // 加载结果
+        async function loadResults() {
+            try {
+                const res = await fetch('/api/results');
+                const data = await res.json();
+                const tbody = document.getElementById('resultsBody');
+                document.getElementById('resultCount').textContent = `${data.length} 个结果`;
+
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-muted">暂无测速结果，请先点击"立即运行"或等待定时任务。</td></tr>';
+                    return;
+                }
+
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    const ip = row['IP 地址'] || row['ip'] || row['IP'];
+                    const port = row['端口'] || row['port'] || row['Port'];
+                    const speed = row['下载速度(MB/s)'] || row['下载速度 (MB/s)'] || row['speed'] || 'N/A';
+                    const latency = row['平均延迟'] || row['delay'] || 'N/A';
+                    const region = row['地区码'] || 'Unknown';
+
+                    tr.innerHTML = `
+                        <td class="font-monospace">${ip}:${port}</td>
+                        <td class="text-success fw-bold">${speed}</td>
+                        <td>${latency}</td>
+                        <td><span class="badge bg-secondary">${region}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { e.textContent = "加载失败"; }
+        }
+
+        // 加载日志
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const lines = await res.json();
+                const logArea = document.getElementById('logArea');
+
+                // Keep chronological order (Old -> New) for readability
+                // Because reading multi-line logs backwards (e.g. Header after Progress) is very confusing.
+                // We will use Auto-scroll to keep the view at the bottom.
+
+                const newText = lines.join('').trim() || '等待日志...';
+
+                if (logArea.textContent !== newText) {
+                    const wasAtBottom = Math.abs(logArea.scrollHeight - logArea.scrollTop - logArea.clientHeight) < 50;
+
+                    logArea.textContent = newText;
+
+                    // Auto-scroll to bottom if we were already there OR if it's the first load
+                    if (wasAtBottom || logArea.scrollTop === 0) {
+                        logArea.scrollTop = logArea.scrollHeight;
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // 加载运行状态
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const statusText = document.getElementById('statusText');
+                const lastRunTime = document.getElementById('lastRunTime');
+                const alertBox = document.getElementById('statusAlert');
+
+                statusText.textContent = data.message;
+                lastRunTime.textContent = data.last_run !== '-' ? `最后更新: ${data.last_run}` : '';
+
+                if (data.message.includes('成功')) {
+                    alertBox.className = 'alert alert-success mb-0 py-2 small';
+                } else if (data.message.includes('失败') || data.message.includes('出错')) {
+                    alertBox.className = 'alert alert-danger mb-0 py-2 small';
+                } else if (data.message.includes('运行中')) {
+                    alertBox.className = 'alert alert-primary mb-0 py-2 small';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // 初始化
+        loadConfig();
+        loadResults();
+        loadLogs();
+        loadStatus();
+
+        // 定时刷新
+        setInterval(loadResults, 5000);
+        setInterval(loadLogs, 1000); // Faster log polling (1s)
+        setInterval(loadStatus, 3000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,6 @@
+# 此文件用于保持 data 目录在 Git 中被跟踪
+# data 目录用于存储运行时产生的数据：
+# - result.csv: 测速结果
+# - app.log: 应用日志
+# - status.json: 运行状态
+# - web_config.json: Web 配置

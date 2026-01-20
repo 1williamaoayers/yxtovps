@@ -2030,11 +2030,7 @@ def run_with_args(args):
             output_file = "result.csv"
         else:
             cmd = [f"./{exec_name}"]
-            # 在Docker/Linux环境下，如果有data目录，则输出到data目录
-            if os.path.exists("data") and os.path.isdir("data"):
-                output_file = "data/result.csv"
-            else:
-                output_file = "result.csv"
+            output_file = "result.csv"
         
         cmd.extend([
             "-f", ip_file,
@@ -3885,19 +3881,108 @@ def upload_to_cloudflare_api_cli(result_file="result.csv", worker_domain=None, u
     
     Args:
         result_file: 测速结果文件路径
-        worker_domain: Worker域名
-        uuid: UUID或路径
+        worker_domain: Worker域名 (支持逗号分隔多个)
+        uuid: UUID或路径 (支持逗号分隔多个)
         upload_count: 上传IP数量
         clear_existing: 是否清空现有IP（默认: False）
     """
+    # 预处理：支持多Worker (逗号分隔)
+    if worker_domain and ',' in worker_domain:
+        # 重置结果文件 (仅在第一次进入时执行，实际上这是递归入口)
+        # 为避免递归调用时重复清空，我们假设这个函数被外部调用时总是一次新的任务
+        # 但由于其实是递归自己调用的... 这是一个问题。
+        # 更好的是：不在这里做文件操作，而是只在这里做分发。
+        # 结果文件应该由每个 Worker 的上传逻辑追加写入。
+        
+        # 首次调用时清空旧的结果文件
+        result_json_path = "data/upload_results.json"
+        # 只有当这是顶层调用时才清空（但这很难判断），或者我们在 main 之前清空，或者每次运行前清空。
+        # 简单起见：如果文件存在且最后修改时间很久以前，或者 app.py 在运行前删除了它。
+        # 让我们让 app.py 负责删除。这里只负责追加。
+        
+        domains = [d.strip() for d in worker_domain.split(',') if d.strip()]
+        uuids_str = uuid if uuid else ""
+        uuids = [u.strip() for u in uuids_str.split(',') if u.strip()]
+        
+        if len(domains) > 0:
+            print(f"\n📋 检测到 {len(domains)} 个 Cloudflare Worker 配置，将逐个上报...")
+            
+            # 确保数据目录存在
+            if not os.path.exists("data"):
+                os.makedirs("data")
+            
+            # 清空结果文件（这是一个新的批量任务）
+            if os.path.exists(result_json_path):
+                try:
+                    os.remove(result_json_path)
+                except:
+                    pass
+
+            for i, domain in enumerate(domains):
+                # 获取对应的UUID
+                current_uuid = uuids[i] if i < len(uuids) else (uuids[-1] if uuids else "")
+                
+                if not current_uuid:
+                    print(f"⚠️  跳过第 {i+1} 个 Worker ({domain}): 缺少 UUID")
+                    continue
+                    
+                print(f"\n👉 [Worker {i+1}/{len(domains)}] 目标: {domain}")
+                # 递归调用单一处理逻辑
+                # 注意：这里传入的是单个 domain 和 uuid (无逗号)，不会再次触发此if块
+                upload_to_cloudflare_api_cli(result_file, domain, current_uuid, upload_count, clear_existing)
+                
+            print(f"\n✅ 所有 Worker 上报任务处理完成")
+            return
+
     print("\n" + "=" * 70)
     print(" 命令行模式：Cloudflare Workers API 上报")
     print("=" * 70)
     
+    # 准备结果记录对象
+    current_result = {
+        "worker": worker_domain,
+        "uuid": uuid if uuid else "N/A",
+        "status": "failed", # 默认失败
+        "message": "未知错误",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    def save_current_result():
+        # 追加写入结果文件
+        try:
+             # 尝试导入 json, 之前没有 import json 吗？检查一下
+             # 检查开头是否有 import json
+             pass 
+        except:
+             pass
+        
+        result_json_path = "data/upload_results.json"
+        if not os.path.exists("data"):
+            os.makedirs("data", exist_ok=True)
+            
+        all_results = []
+        if os.path.exists(result_json_path):
+            try:
+                with open(result_json_path, 'r', encoding='utf-8') as f:
+                    all_results = json.load(f)
+            except:
+                pass
+        
+        all_results.append(current_result)
+        
+        try:
+            with open(result_json_path, 'w', encoding='utf-8') as f:
+                json.dump(all_results, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"⚠️ 写入结果文件失败: {e}")
+
     # 检查结果文件是否存在
     if not os.path.exists(result_file):
         print(f"❌ 未找到测速结果文件: {result_file}")
+        current_result["message"] = f"未找到测速结果文件: {result_file}"
+        save_current_result()
         return
+
     
     # 构建 API URL
     api_url = f"https://{worker_domain}/{uuid}/api/preferred-ips"
@@ -4021,6 +4106,8 @@ def upload_to_cloudflare_api_cli(result_file="result.csv", worker_domain=None, u
         
         if not best_ips:
             print("❌ 未找到有效的测速结果")
+            current_result["message"] = "未找到有效的测速结果"
+            save_current_result()
             return
         
         # 限制上传数量
@@ -4113,29 +4200,44 @@ def upload_to_cloudflare_api_cli(result_file="result.csv", worker_domain=None, u
                         print(f"  ❌ 失败: {fail_count} 个")
                     print(f"  📊 总计: {upload_count} 个")
                     print("=" * 70)
+                    
+                    current_result["status"] = "success"
+                    current_result["message"] = f"成功添加: {success_count} 个"
                 else:
-                    print(f"❌ 批量上报失败: {result.get('error', '未知错误')}")
+                    err_msg = result.get('error', '未知错误')
+                    print(f"❌ 批量上报失败: {err_msg}")
+                    current_result["message"] = f"上报失败: {err_msg}"
             elif response and response.status_code == 403:
                 print(f"❌ 认证失败！请检查：")
                 print(f"   1. UUID或者路径是否正确")
                 print(f"   2. 是否在配置页面开启了 'API管理' 功能")
+                current_result["message"] = "认证失败 (403)"
             elif response:
                 print(f"❌ 批量上报失败 (HTTP {response.status_code})")
+                current_result["message"] = f"HTTP错误 ({response.status_code})"
                 try:
                     error_detail = response.json()
                     print(f"   错误详情: {error_detail.get('error', '无详情')}")
+                    current_result["message"] += f": {error_detail.get('error', '无详情')}"
                 except:
                     pass
                 
         except requests.exceptions.Timeout:
             print(f"❌ 请求超时，请检查网络连接")
+            current_result["message"] = "请求超时"
         except requests.exceptions.RequestException as e:
             print(f"❌ 网络错误: {e}")
+            current_result["message"] = f"网络错误: {e}"
         except Exception as e:
             print(f"❌ 请求失败: {e}")
+            current_result["message"] = f"请求失败: {e}"
+        
+        save_current_result()
         
     except Exception as e:
         print(f"❌ 读取测速结果失败: {e}")
+        current_result["message"] = f"读取结果失败: {e}"
+        save_current_result()
         import traceback
         traceback.print_exc()
 

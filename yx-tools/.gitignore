@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# 测速数据和日志（这些是运行时生成的）
+data/app.log
+data/status.json
+data/result.csv
+data/web_config.json
+data/CloudflareST_proxy_*
+data/*.tar.gz
+
+# 但保留 data 目录结构和示例文件
+!data/Cloudflare.txt
+!data/.gitkeep
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
