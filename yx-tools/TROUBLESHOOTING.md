@@ -511,3 +511,101 @@ docker inspect cloudflare-speedtest > inspect.txt
 ---
 
 **最后更新**：2026-01-20
+
+
+## CloudflareST 相关问题
+
+### 问题：CloudflareST 二进制文件缺失
+
+**错误信息**：
+```
+反代版本不存在，开始下载反代版本...
+正在下载: https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_arm.tar.gz
+❌ 下载失败
+未找到反代版本文件，程序无法继续
+❌ Speedtest job failed with exit code 1
+```
+
+**原因**：
+旧版本镜像没有预装 CloudflareST 二进制文件，或者使用了过时的镜像版本。
+
+**解决方案**：
+
+**方法 1：更新到最新镜像（推荐）**
+
+```bash
+# 1. 停止并删除旧容器
+docker stop cloudflare-speedtest
+docker rm cloudflare-speedtest
+
+# 2. 删除旧镜像
+docker rmi ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 3. 拉取最新镜像（已包含 CloudflareST）
+docker pull ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 4. 重新运行容器
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+```
+
+**方法 2：验证 CloudflareST 已安装**
+
+```bash
+# 进入容器检查
+docker exec cloudflare-speedtest ls -la /app/CloudflareST_proxy_*
+
+# 应该看到对应架构的二进制文件：
+# ARM32: CloudflareST_proxy_linux_arm
+# AMD64: CloudflareST_proxy_linux_amd64
+# ARM64: CloudflareST_proxy_linux_arm64
+```
+
+**方法 3：手动下载（不推荐）**
+
+如果自动下载失败，可以手动下载：
+
+```bash
+# 1. 进入容器
+docker exec -it cloudflare-speedtest /bin/bash
+
+# 2. 下载对应架构的文件
+# ARM32
+curl -L -o CloudflareST_proxy_linux_arm.tar.gz https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_arm.tar.gz
+
+# 3. 解压
+tar -xzf CloudflareST_proxy_linux_arm.tar.gz
+
+# 4. 赋予执行权限
+chmod +x CloudflareST_proxy_linux_arm
+
+# 5. 退出容器
+exit
+
+# 6. 重启容器
+docker restart cloudflare-speedtest
+```
+
+**验证修复**：
+
+```bash
+# 查看容器日志
+docker logs -f cloudflare-speedtest
+
+# 访问 Web 界面
+# http://设备IP:2028
+
+# 尝试运行测速
+# 在 Web 界面点击"立即运行测速"按钮
+```
+
+**注意事项**：
+- 最新版本的镜像（2026-01-20 之后构建）已经在构建时预装了 CloudflareST
+- 如果仍然遇到问题，请确保使用的是最新版本的镜像
+- 可以通过 `docker image inspect` 查看镜像的构建时间
+
