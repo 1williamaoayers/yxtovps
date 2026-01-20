@@ -57,8 +57,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ /app/
 COPY cloudflare_speedtest.py /app/
 
-# 创建数据目录用于持久化
-RUN mkdir -p /app/data
+# 创建数据目录用于持久化，并复制 IP 列表到数据目录
+RUN mkdir -p /app/data && \
+    cp /app/Cloudflare.txt /app/data/Cloudflare.txt
 
 # 环境变量
 ENV PYTHONUNBUFFERED=1
