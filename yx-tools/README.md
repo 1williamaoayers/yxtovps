@@ -28,15 +28,41 @@
 ## 📦 快速开始
 
 ### 前置要求
-- Docker & Docker Compose
+- Docker（安装 Docker Desktop 或 Docker Engine）
 - 至少 2GB 可用内存
 - 稳定的网络连接
 
 ### 部署方式
 
-#### 🚀 方式一：使用预构建镜像（推荐，开箱即用）
+#### ⚡ 方式一：Docker Run 一键部署（最简单）
 
-如果启用了 GitHub Actions 自动构建，可以直接拉取镜像：
+**适合：想要最快速度体验的用户，一条命令搞定！**
+
+```bash
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.io/1williamaoayers/yxtovps:latest
+
+# Windows PowerShell 用户使用:
+docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v ${PWD}/data:/app/data -e TZ=Asia/Shanghai ghcr.io/1williamaoayers/yxtovps:latest
+```
+
+然后浏览器打开：**http://localhost:2028** 🎉
+
+**说明**：
+- `-p 2028:2028`：映射端口，可改为其他端口如 `-p 8080:2028`
+- `-v $(pwd)/data:/app/data`：保存测速结果到当前目录的 data 文件夹
+- `--restart unless-stopped`：开机自动启动
+
+---
+
+#### 🚀 方式二：Docker Compose 部署（推荐给长期使用）
+
+如果 GitHub Actions 已构建镜像，可以直接拉取：
 
 ```bash
 # 1. 创建工作目录
@@ -55,9 +81,11 @@ docker-compose up -d
 # 浏览器打开: http://localhost:2028
 ```
 
-**优点**：无需构建，直接使用，节省时间
+**优点**：配置文件管理，方便修改端口等参数
 
-#### 🛠️ 方式二：本地构建（开发者推荐）
+---
+
+#### 🛠️ 方式三：本地构建（开发者推荐）
 
 适合需要修改代码或自定义功能的场景：
 
@@ -78,7 +106,27 @@ docker-compose up -d --build
 - 由于使用了 volume 挂载，修改后重启容器即可生效（无需重新构建）
 - 适合开发和调试
 
-就这么简单！🎉
+---
+
+### 停止和管理容器
+
+```bash
+# 查看容器状态
+docker ps | grep cloudflare-speedtest
+
+# 查看日志
+docker logs -f cloudflare-speedtest
+
+# 停止容器
+docker stop cloudflare-speedtest
+
+# 重启容器
+docker restart cloudflare-speedtest
+
+# 删除容器（数据保留在 data 目录）
+docker rm -f cloudflare-speedtest
+```
+
 
 ## 🎮 使用指南
 
