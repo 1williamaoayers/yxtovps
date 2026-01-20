@@ -1844,7 +1844,7 @@ def run_speedtest_with_file(ip_file, dn_count, speed_limit, time_limit, thread_c
             "-tl", time_limit,
             "-url", DEFAULT_SPEEDTEST_URL,
             "-p", "20"  # 显示前20个结果
-        ]
+        ])
         
         print(f"\n运行命令: {' '.join(cmd)}")
         print("=" * 50)
