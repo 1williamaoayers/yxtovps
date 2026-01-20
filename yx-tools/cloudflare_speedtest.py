@@ -1433,11 +1433,15 @@ def handle_beginner_mode(ip_file=CLOUDFLARE_IP_FILE, ip_version="ipv4"):
     os_type, arch_type = get_system_info()
     exec_name = download_cloudflare_speedtest(os_type, arch_type)
     
-    # 构建测速命令
+    # 构建测速命令（判断绝对路径 vs 相对路径）
     if sys.platform == "win32":
         cmd = [exec_name]
     else:
-        cmd = [f"./{exec_name}"]
+        # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+        if exec_name.startswith('/'):
+            cmd = [exec_name]
+        else:
+            cmd = [f"./{exec_name}"]
     
     cmd.extend([
         "-f", ip_file,
@@ -1669,7 +1673,11 @@ def handle_normal_mode(ip_file=CLOUDFLARE_IP_FILE, ip_version="ipv4"):
                 cmd = [exec_name]
                 output_file = "result.csv"
             else:
-                cmd = [f"./{exec_name}"]
+                # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+                if exec_name.startswith('/'):
+                    cmd = [exec_name]
+                else:
+                    cmd = [f"./{exec_name}"]
                 # 在Docker/Linux环境下，如果有data目录，则输出到data目录
                 if os.path.exists("data") and os.path.isdir("data"):
                     output_file = "data/result.csv"
@@ -1862,11 +1870,15 @@ def run_speedtest(exec_name, cfcolo, dn_count, speed_limit, time_limit, thread_c
     print(f"  - 延迟测速线程数: {thread_count}")
     print("-" * 50)
     
-    # 构建命令
+    # 构建命令（判断绝对路径 vs 相对路径）
     if sys.platform == "win32":
         cmd = [exec_name]
     else:
-        cmd = [f"./{exec_name}"]
+        # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+        if exec_name.startswith('/'):
+            cmd = [exec_name]
+        else:
+            cmd = [f"./{exec_name}"]
     
     cmd.extend([
         "-n", thread_count,
@@ -2036,7 +2048,11 @@ def run_with_args(args):
             cmd = [exec_name]
             output_file = "result.csv"
         else:
-            cmd = [f"./{exec_name}"]
+            # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+            if exec_name.startswith('/'):
+                cmd = [exec_name]
+            else:
+                cmd = [f"./{exec_name}"]
             output_file = "result.csv"
         
         cmd.extend([
@@ -2130,7 +2146,11 @@ def run_with_args(args):
             cmd = [exec_name]
             output_file = "result.csv"
         else:
-            cmd = [f"./{exec_name}"]
+            # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+            if exec_name.startswith('/'):
+                cmd = [exec_name]
+            else:
+                cmd = [f"./{exec_name}"]
             # 在Docker/Linux环境下，如果有data目录，则输出到data目录
             if os.path.exists("data") and os.path.isdir("data"):
                 output_file = "data/result.csv"
