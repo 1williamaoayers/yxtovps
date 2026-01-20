@@ -47,7 +47,7 @@
 **适合：想要最快速度体验的用户，一条命令搞定！支持所有架构！**
 
 ```bash
-# 通用命令（AMD64 和 ARM32v7 都适用）
+# 国际用户（AMD64 和 ARM32v7 都适用）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
@@ -56,8 +56,20 @@ docker run -d \
   -e TZ=Asia/Shanghai \
   ghcr.io/1williamaoayers/yxtovps:latest
 
-# Windows PowerShell 用户使用:
+# 国内用户（使用南京大学镜像源，速度更快）
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# Windows PowerShell 用户使用（国际）:
 docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v ${PWD}/data:/app/data -e TZ=Asia/Shanghai ghcr.io/1williamaoayers/yxtovps:latest
+
+# Windows PowerShell 用户使用（国内镜像）:
+docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v ${PWD}/data:/app/data -e TZ=Asia/Shanghai ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
 ```
 
 然后浏览器打开：**http://localhost:2028** 🎉
@@ -67,6 +79,7 @@ docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 
 - `-v $(pwd)/data:/app/data`：保存测速结果到当前目录的 data 文件夹
 - `--restart unless-stopped`：开机自动启动
 - Docker 会自动识别设备架构并拉取对应镜像
+- **国内用户推荐使用 `ghcr.nju.edu.cn` 镜像源，下载速度更快**
 
 ---
 
@@ -82,14 +95,17 @@ ssh root@玩客云IP
 mkdir -p /opt/cloudflare-speedtest
 cd /opt/cloudflare-speedtest
 
-# 3. 一键部署
+# 3. 一键部署（国内用户推荐使用南京大学镜像源）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
   -p 2028:2028 \
   -v $(pwd)/data:/app/data \
   -e TZ=Asia/Shanghai \
-  ghcr.io/1williamaoayers/yxtovps:latest
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 国际用户使用官方源
+# ghcr.io/1williamaoayers/yxtovps:latest
 
 # 4. 查看运行状态
 docker ps | grep cloudflare-speedtest

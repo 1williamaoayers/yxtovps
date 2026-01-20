@@ -54,7 +54,11 @@ https://github.com/1williamaoayers/yxtovps/pkgs/container/yxtovps
 
 在本地执行：
 ```bash
+# 国际用户
 docker manifest inspect ghcr.io/1williamaoayers/yxtovps:latest
+
+# 国内用户（使用南京大学镜像源）
+docker manifest inspect ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
 ```
 
 **预期输出**：
@@ -83,13 +87,19 @@ docker manifest inspect ghcr.io/1williamaoayers/yxtovps:latest
 #### 3.1 拉取镜像
 
 ```bash
+# 国际用户
 docker pull ghcr.io/1williamaoayers/yxtovps:latest
+
+# 国内用户（推荐使用南京大学镜像源）
+docker pull ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
 ```
 
 **验证**：
 ```bash
-# 检查镜像架构
+# 检查镜像架构（根据使用的镜像源调整命令）
 docker image inspect ghcr.io/1williamaoayers/yxtovps:latest | grep Architecture
+# 或
+docker image inspect ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest | grep Architecture
 # 应显示: "Architecture": "amd64"
 ```
 
@@ -181,15 +191,20 @@ docker --version
 #### 4.2 拉取镜像
 
 ```bash
-docker pull ghcr.io/1williamaoayers/yxtovps:latest
+# 国内用户推荐使用南京大学镜像源（速度更快）
+docker pull ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 国际用户使用官方源
+# docker pull ghcr.io/1williamaoayers/yxtovps:latest
 ```
 
 **验证架构**：
 ```bash
-docker image inspect ghcr.io/1williamaoayers/yxtovps:latest | grep Architecture
+# 根据使用的镜像源调整命令
+docker image inspect ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest | grep Architecture
 # 应显示: "Architecture": "arm"
 
-docker image inspect ghcr.io/1williamaoayers/yxtovps:latest | grep Variant
+docker image inspect ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest | grep Variant
 # 应显示: "Variant": "v7"
 ```
 
@@ -200,14 +215,17 @@ docker image inspect ghcr.io/1williamaoayers/yxtovps:latest | grep Variant
 mkdir -p /opt/cloudflare-speedtest
 cd /opt/cloudflare-speedtest
 
-# 运行容器
+# 运行容器（国内用户推荐使用南京大学镜像源）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
   -p 2028:2028 \
   -v $(pwd)/data:/app/data \
   -e TZ=Asia/Shanghai \
-  ghcr.io/1williamaoayers/yxtovps:latest
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 国际用户使用官方源
+# ghcr.io/1williamaoayers/yxtovps:latest
 ```
 
 #### 4.4 功能测试

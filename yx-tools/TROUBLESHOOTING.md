@@ -4,11 +4,59 @@
 
 ## 目录
 
+- [镜像源选择](#镜像源选择)
 - [架构相关问题](#架构相关问题)
 - [部署问题](#部署问题)
 - [运行时问题](#运行时问题)
 - [性能问题](#性能问题)
 - [网络问题](#网络问题)
+
+## 镜像源选择
+
+### 国内用户推荐使用南京大学镜像源
+
+**为什么使用镜像源？**
+- GitHub Container Registry (ghcr.io) 在国内访问速度较慢
+- 南京大学提供的 ghcr.nju.edu.cn 镜像源在国内速度更快
+- 镜像内容完全相同，只是下载源不同
+
+**如何使用？**
+
+将所有命令中的 `ghcr.io` 替换为 `ghcr.nju.edu.cn`：
+
+```bash
+# 官方源（国际用户）
+ghcr.io/1williamaoayers/yxtovps:latest
+
+# 南京大学镜像源（国内用户）
+ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+```
+
+**示例**：
+
+```bash
+# 国内用户拉取镜像
+docker pull ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+
+# 国内用户运行容器
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
+```
+
+**其他国内镜像源**：
+- 南京大学：`ghcr.nju.edu.cn`
+- 上海交通大学：`ghcr.sjtu.edu.cn`（如果南大源不可用）
+
+**验证镜像**：
+```bash
+# 检查镜像是否正确
+docker image inspect ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest | grep Architecture
+```
 
 ## 架构相关问题
 

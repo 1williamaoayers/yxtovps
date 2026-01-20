@@ -131,6 +131,7 @@ feat: 添加 ARM32v7 多架构支持
 
 ### 通用部署（自动识别架构）
 ```bash
+# 国际用户
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
@@ -138,6 +139,15 @@ docker run -d \
   -v $(pwd)/data:/app/data \
   -e TZ=Asia/Shanghai \
   ghcr.io/1williamaoayers/yxtovps:latest
+
+# 国内用户（推荐使用南京大学镜像源，速度更快）
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
 ```
 
 ### 玩客云专用部署
@@ -149,18 +159,23 @@ ssh root@玩客云IP
 mkdir -p /opt/cloudflare-speedtest
 cd /opt/cloudflare-speedtest
 
-# 一键部署
+# 一键部署（国内用户推荐使用南京大学镜像源）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
   -p 2028:2028 \
   -v $(pwd)/data:/app/data \
   -e TZ=Asia/Shanghai \
-  ghcr.io/1williamaoayers/yxtovps:latest
+  ghcr.nju.edu.cn/1williamaoayers/yxtovps:latest
 
 # 访问 Web 界面
 # http://玩客云IP:2028
 ```
+
+**镜像源说明**：
+- `ghcr.io` - GitHub Container Registry 官方源（国际用户）
+- `ghcr.nju.edu.cn` - 南京大学镜像源（国内用户，速度更快）
+- `ghcr.sjtu.edu.cn` - 上海交通大学镜像源（备用）
 
 ### Docker Compose 部署
 ```bash
