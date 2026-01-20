@@ -1826,8 +1826,17 @@ def run_speedtest_with_file(ip_file, dn_count, speed_limit, time_limit, thread_c
         exec_name = download_cloudflare_speedtest(os_type, arch_type)
         
         # 构建命令（反代模式使用TCPing，专注于端口信息）
-        cmd = [
-            f"./{exec_name}",
+        # 判断绝对路径 vs 相对路径
+        if sys.platform == "win32":
+            cmd = [exec_name]
+        else:
+            # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+            if exec_name.startswith('/'):
+                cmd = [exec_name]
+            else:
+                cmd = [f"./{exec_name}"]
+        
+        cmd.extend([
             "-f", ip_file,
             "-n", thread_count,
             "-dn", dn_count,
@@ -4626,11 +4635,15 @@ def detect_available_regions():
     os_type, arch_type = get_system_info()
     exec_name = download_cloudflare_speedtest(os_type, arch_type)
     
-    # 构建检测命令 - 使用HTTPing模式快速检测
+    # 构建检测命令 - 使用HTTPing模式快速检测（判断绝对路径 vs 相对路径）
     if sys.platform == "win32":
         cmd = [exec_name]
     else:
-        cmd = [f"./{exec_name}"]
+        # 如果是绝对路径（以 / 开头），直接使用；否则添加 ./ 前缀
+        if exec_name.startswith('/'):
+            cmd = [exec_name]
+        else:
+            cmd = [f"./{exec_name}"]
     
     cmd.extend([
         "-dd",  # 禁用下载测速，只做延迟测试
