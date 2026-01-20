@@ -16,6 +16,7 @@ RUN apt-get update && \
 
 # Download CloudflareST binary based on architecture
 RUN ARCH=$(dpkg --print-architecture) && \
+    echo "Detected architecture: $ARCH" && \
     if [ "$ARCH" = "amd64" ]; then \
         CLOUDFLARE_ST_URL="https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_amd64.tar.gz"; \
         CLOUDFLARE_ST_NAME="CloudflareST_proxy_linux_amd64"; \
@@ -28,15 +29,23 @@ RUN ARCH=$(dpkg --print-architecture) && \
     else \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
-    echo "Downloading CloudflareST for $ARCH..." && \
+    echo "Downloading CloudflareST from: $CLOUDFLARE_ST_URL" && \
+    echo "Target binary name: $CLOUDFLARE_ST_NAME" && \
     curl -L -o /tmp/cloudflare_st.tar.gz "$CLOUDFLARE_ST_URL" && \
+    echo "Download complete, extracting..." && \
     mkdir -p /tmp/cloudflare_st && \
     tar -xzf /tmp/cloudflare_st.tar.gz -C /tmp/cloudflare_st && \
+    echo "Extracted files:" && \
+    ls -la /tmp/cloudflare_st/ && \
     find /tmp/cloudflare_st -type f -name "CloudflareST_proxy_*" -exec mv {} /app/$CLOUDFLARE_ST_NAME \; && \
+    if [ ! -f /app/$CLOUDFLARE_ST_NAME ]; then \
+        echo "ERROR: Binary not found after extraction, trying alternative extraction..." && \
+        find /tmp/cloudflare_st -type f ! -name "*.txt" ! -name "*.md" -exec mv {} /app/$CLOUDFLARE_ST_NAME \; ; \
+    fi && \
     chmod +x /app/$CLOUDFLARE_ST_NAME && \
     rm -rf /tmp/cloudflare_st.tar.gz /tmp/cloudflare_st && \
     ls -lh /app/$CLOUDFLARE_ST_NAME && \
-    echo "CloudflareST binary installed: $CLOUDFLARE_ST_NAME"
+    echo "✓ CloudflareST binary installed successfully: $CLOUDFLARE_ST_NAME"
 
 # Install Python requirements (separate layer for better caching)
 COPY requirements.txt .
