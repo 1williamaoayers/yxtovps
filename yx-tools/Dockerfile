@@ -41,6 +41,9 @@ COPY --from=builder /src/CloudflareST_proxy_linux_amd64 /app/CloudflareST_proxy_
 COPY --from=builder /src/CloudflareST_proxy_linux_arm64 /app/CloudflareST_proxy_linux_arm64
 COPY --from=builder /src/CloudflareST_proxy_linux_arm /app/CloudflareST_proxy_linux_arm
 
+# 复制 Cloudflare IP 列表文件（避免运行时从网络下载）
+COPY CloudflareSpeedTest/ip.txt /app/Cloudflare.txt
+
 # 赋予所有二进制文件执行权限
 RUN chmod +x /app/CloudflareST_proxy_linux_* && \
     echo "✓ Installed CloudflareST binaries:" && \
