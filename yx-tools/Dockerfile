@@ -11,8 +11,29 @@ WORKDIR /app
 
 # Install system dependencies (curl for healthchecks/downloading)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+    apt-get install -y --no-install-recommends curl tar && \
     rm -rf /var/lib/apt/lists/*
+
+# Download CloudflareST binary based on architecture
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        CLOUDFLARE_ST_URL="https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_amd64.tar.gz"; \
+        CLOUDFLARE_ST_NAME="CloudflareST_proxy_linux_amd64"; \
+    elif [ "$ARCH" = "armhf" ] || [ "$ARCH" = "arm" ]; then \
+        CLOUDFLARE_ST_URL="https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_arm.tar.gz"; \
+        CLOUDFLARE_ST_NAME="CloudflareST_proxy_linux_arm"; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        CLOUDFLARE_ST_URL="https://github.com/byJoey/CloudflareSpeedTest/releases/download/v1.0/CloudflareST_proxy_linux_arm64.tar.gz"; \
+        CLOUDFLARE_ST_NAME="CloudflareST_proxy_linux_arm64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    echo "Downloading CloudflareST for $ARCH..." && \
+    curl -L -o /tmp/cloudflare_st.tar.gz "$CLOUDFLARE_ST_URL" && \
+    tar -xzf /tmp/cloudflare_st.tar.gz -C /app && \
+    chmod +x /app/$CLOUDFLARE_ST_NAME && \
+    rm /tmp/cloudflare_st.tar.gz && \
+    echo "CloudflareST binary installed: $CLOUDFLARE_ST_NAME"
 
 # Install Python requirements (separate layer for better caching)
 COPY requirements.txt .
