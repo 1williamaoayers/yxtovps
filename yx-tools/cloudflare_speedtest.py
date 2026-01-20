@@ -543,17 +543,24 @@ def download_file(url, filename):
 
 def download_cloudflare_speedtest(os_type, arch_type):
     """下载 CloudflareSpeedTest 可执行文件（优先使用反代版本）"""
-    # 优先检查反代版本
+    # 构建二进制文件名
     if os_type == "win":
         proxy_exec_name = f"CloudflareST_proxy_{os_type}_{arch_type}.exe"
     else:
         proxy_exec_name = f"CloudflareST_proxy_{os_type}_{arch_type}"
     
+    # 优先检查 /app/ 目录（Docker 容器中编译好的版本）
+    app_binary_path = f"/app/{proxy_exec_name}"
+    if os.path.exists(app_binary_path):
+        print(f"✓ 使用容器内编译的二进制文件: {app_binary_path}")
+        return app_binary_path
+    
+    # 检查当前目录（本地运行或手动下载的版本）
     if os.path.exists(proxy_exec_name):
-        print(f"✓ 使用反代版本: {proxy_exec_name}")
+        print(f"✓ 使用当前目录的二进制文件: {proxy_exec_name}")
         return proxy_exec_name
     
-    # 检查是否已下载反代版本
+    # 如果都不存在，开始下载
     print("反代版本不存在，开始下载反代版本...")
     
     # 构建下载URL - 使用您的GitHub仓库
