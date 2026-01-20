@@ -1,5 +1,9 @@
 # 🚀 Cloudflare 优选 IP 工具 (Web 管理面板版)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![GitHub Actions](https://github.com/1williamaoayers/yxtovps/workflows/Build%20and%20Publish%20Docker%20Image/badge.svg)](https://github.com/1williamaoayers/yxtovps/actions)
+
 一个基于 Docker 的 Cloudflare CDN 节点优选工具，带有现代化的 Web 管理界面，支持自动测速、定时任务和多 Worker 节点上传。
 
 ## ✨ 核心特性
@@ -28,19 +32,51 @@
 - 至少 2GB 可用内存
 - 稳定的网络连接
 
-### 一键部署
+### 部署方式
+
+#### 🚀 方式一：使用预构建镜像（推荐，开箱即用）
+
+如果启用了 GitHub Actions 自动构建，可以直接拉取镜像：
+
+```bash
+# 1. 创建工作目录
+mkdir cloudflare-speedtest && cd cloudflare-speedtest
+
+# 2. 下载 docker-compose.yml
+curl -O https://raw.githubusercontent.com/1williamaoayers/yxtovps/main/yx-tools/docker-compose.yml
+
+# 3. 创建数据目录
+mkdir data
+
+# 4. 启动服务
+docker-compose up -d
+
+# 5. 访问管理面板
+# 浏览器打开: http://localhost:2028
+```
+
+**优点**：无需构建，直接使用，节省时间
+
+#### 🛠️ 方式二：本地构建（开发者推荐）
+
+适合需要修改代码或自定义功能的场景：
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/yourusername/yxtovps.git
+git clone https://github.com/1williamaoayers/yxtovps.git
 cd yxtovps/yx-tools
 
-# 2. 启动服务（会自动构建镜像）
-docker-compose up -d
+# 2. 构建并启动服务
+docker-compose up -d --build
 
 # 3. 访问管理面板
-浏览器打开: http://localhost:2028
+# 浏览器打开: http://localhost:2028
 ```
+
+**优点**：
+- 可以自由修改代码
+- 由于使用了 volume 挂载，修改后重启容器即可生效（无需重新构建）
+- 适合开发和调试
 
 就这么简单！🎉
 
