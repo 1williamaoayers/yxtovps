@@ -30,9 +30,12 @@ RUN ARCH=$(dpkg --print-architecture) && \
     fi && \
     echo "Downloading CloudflareST for $ARCH..." && \
     curl -L -o /tmp/cloudflare_st.tar.gz "$CLOUDFLARE_ST_URL" && \
-    tar -xzf /tmp/cloudflare_st.tar.gz -C /app && \
+    mkdir -p /tmp/cloudflare_st && \
+    tar -xzf /tmp/cloudflare_st.tar.gz -C /tmp/cloudflare_st && \
+    find /tmp/cloudflare_st -type f -name "CloudflareST_proxy_*" -exec mv {} /app/$CLOUDFLARE_ST_NAME \; && \
     chmod +x /app/$CLOUDFLARE_ST_NAME && \
-    rm /tmp/cloudflare_st.tar.gz && \
+    rm -rf /tmp/cloudflare_st.tar.gz /tmp/cloudflare_st && \
+    ls -lh /app/$CLOUDFLARE_ST_NAME && \
     echo "CloudflareST binary installed: $CLOUDFLARE_ST_NAME"
 
 # Install Python requirements (separate layer for better caching)
