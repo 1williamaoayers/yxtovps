@@ -3,8 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![GitHub Actions](https://github.com/1williamaoayers/yxtovps/workflows/Build%20and%20Publish%20Docker%20Image/badge.svg)](https://github.com/1williamaoayers/yxtovps/actions)
+[![Multi-Arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm32v7-blue)](https://github.com/1williamaoayers/yxtovps/pkgs/container/yxtovps)
 
 一个基于 Docker 的 Cloudflare CDN 节点优选工具，带有现代化的 Web 管理界面，支持自动测速、定时任务和多 Worker 节点上传。
+
+**🎯 支持多架构：AMD64 (x86_64) 和 ARM32v7 (玩客云等设备)**
 
 ## ✨ 核心特性
 
@@ -25,20 +28,26 @@
 - **多 Worker 上传**：测速结果自动推送到多个 Worker 节点
 - **持久化存储**：测速结果和日志永久保存
 
+### 🌐 多架构支持
+- **AMD64 (x86_64)**：标准 PC、服务器
+- **ARM32v7 (armv7l)**：玩客云、树莓派等 ARM 设备
+- **自动识别**：Docker 自动拉取适配当前设备架构的镜像
+
 ## 📦 快速开始
 
 ### 前置要求
 - Docker（安装 Docker Desktop 或 Docker Engine）
-- 至少 2GB 可用内存
+- 至少 512MB 可用内存（ARM 设备）/ 2GB（x86 设备）
 - 稳定的网络连接
 
 ### 部署方式
 
 #### ⚡ 方式一：Docker Run 一键部署（最简单）
 
-**适合：想要最快速度体验的用户，一条命令搞定！**
+**适合：想要最快速度体验的用户，一条命令搞定！支持所有架构！**
 
 ```bash
+# 通用命令（AMD64 和 ARM32v7 都适用）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
@@ -57,6 +66,47 @@ docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 
 - `-p 2028:2028`：映射端口，可改为其他端口如 `-p 8080:2028`
 - `-v $(pwd)/data:/app/data`：保存测速结果到当前目录的 data 文件夹
 - `--restart unless-stopped`：开机自动启动
+- Docker 会自动识别设备架构并拉取对应镜像
+
+---
+
+#### 🎮 玩客云专用部署指南
+
+**玩客云设备（ARM32v7 架构）一键部署：**
+
+```bash
+# 1. SSH 登录到玩客云
+ssh root@玩客云IP
+
+# 2. 创建工作目录
+mkdir -p /opt/cloudflare-speedtest
+cd /opt/cloudflare-speedtest
+
+# 3. 一键部署
+docker run -d \
+  --name cloudflare-speedtest \
+  --restart unless-stopped \
+  -p 2028:2028 \
+  -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ghcr.io/1williamaoayers/yxtovps:latest
+
+# 4. 查看运行状态
+docker ps | grep cloudflare-speedtest
+
+# 5. 查看日志
+docker logs -f cloudflare-speedtest
+```
+
+**访问 Web 界面**：
+- 在浏览器中打开：`http://玩客云IP:2028`
+- 例如：`http://192.168.1.100:2028`
+
+**玩客云推荐配置**：
+- 测试数量：20-50（避免内存不足）
+- 线程数：100-200（根据网络情况调整）
+- 延迟阈值：300ms
+- 速度下限：3-5 MB/s
 
 ---
 
@@ -125,6 +175,9 @@ docker restart cloudflare-speedtest
 
 # 删除容器（数据保留在 data 目录）
 docker rm -f cloudflare-speedtest
+
+# 查看镜像架构信息
+docker image inspect ghcr.io/1williamaoayers/yxtovps:latest | grep Architecture
 ```
 
 
@@ -225,9 +278,10 @@ docker-compose up -d --build
 ```
 
 ### 2. Web 界面无法访问
-- 检查端口是否被占用：`netstat -ano | findstr 2028` (Windows)
+- 检查端口是否被占用：`netstat -ano | findstr 2028` (Windows) 或 `netstat -tuln | grep 2028` (Linux)
 - 检查防火墙是否放行 2028 端口
 - 确认容器正在运行：`docker ps`
+- 检查容器健康状态：`docker inspect cloudflare-speedtest | grep Health`
 
 ### 3. 测速结果为空
 - 检查网络连接是否正常
@@ -238,6 +292,68 @@ docker-compose up -d --build
 - 检查 Worker URL 格式是否正确（每行一个完整 URL）
 - 查看日志中的具体报错信息
 - 确认 Worker 端点可以访问
+
+### 5. ARM32 设备特定问题
+
+#### 架构不匹配错误
+**错误信息**：`exec /usr/local/bin/python: exec format error`
+
+**原因**：拉取了错误架构的镜像
+
+**解决方案**：
+```bash
+# 1. 删除现有容器和镜像
+docker rm -f cloudflare-speedtest
+docker rmi ghcr.io/1williamaoayers/yxtovps:latest
+
+# 2. 验证设备架构
+uname -m  # 应该显示 armv7l
+
+# 3. 手动指定平台拉取
+docker pull --platform linux/arm/v7 ghcr.io/1williamaoayers/yxtovps:latest
+
+# 4. 重新运行容器
+docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v $(pwd)/data:/app/data -e TZ=Asia/Shanghai ghcr.io/1williamaoayers/yxtovps:latest
+```
+
+#### 玩客云内存不足
+**症状**：容器频繁重启或测速失败
+
+**解决方案**：
+- 降低测试数量到 20-30
+- 降低线程数到 100-150
+- 关闭其他不必要的容器或服务
+- 检查内存使用：`free -h`
+
+#### 数据卷权限问题
+**错误信息**：`PermissionError: [Errno 13] Permission denied`
+
+**解决方案**：
+```bash
+# 修改数据目录权限
+chmod -R 777 ./data
+
+# 或者使用 root 用户运行容器
+docker run -d --user root --name cloudflare-speedtest ...
+```
+
+### 6. 验证多架构支持
+
+检查镜像是否包含多个架构：
+```bash
+# 查看镜像清单
+docker manifest inspect ghcr.io/1williamaoayers/yxtovps:latest
+
+# 应该看到类似输出：
+# "architecture": "amd64"
+# "architecture": "arm"
+# "variant": "v7"
+```
+
+查看当前运行的容器架构：
+```bash
+docker inspect cloudflare-speedtest | grep Architecture
+```
 
 ## 📊 技术栈
 

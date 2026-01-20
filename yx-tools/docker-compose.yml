@@ -1,15 +1,48 @@
 version: '3.8'
+
 services:
   cloudflare-speedtest:
-    build: .
+    # 使用预构建的多架构镜像（推荐）
+    image: ghcr.io/1williamaoayers/yxtovps:latest
+    
+    # 或者本地构建（开发模式）
+    # build: .
+    
     container_name: cloudflare-speedtest
     restart: unless-stopped
+    
     ports:
       - "2028:2028"
+    
     volumes:
       - ./data:/app/data
-      - ./app/app.py:/app/app.py
-      - ./app/templates:/app/templates
-      - ./cloudflare_speedtest.py:/app/cloudflare_speedtest.py
+      # 开发模式：挂载代码实现热重载（仅本地构建时使用）
+      # - ./app/app.py:/app/app.py
+      # - ./app/templates:/app/templates
+      # - ./cloudflare_speedtest.py:/app/cloudflare_speedtest.py
+    
     environment:
       - TZ=Asia/Shanghai
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2028/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    # ARM32 设备内存限制（可选，玩客云推荐启用）
+    # mem_limit: 256m
+    # memswap_limit: 512m
+    
+    # 自定义 DNS（可选）
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
+
+# 多架构说明：
+# 本镜像支持以下架构：
+# - linux/amd64 (x86_64) - 标准 PC、服务器
+# - linux/arm/v7 (armv7l) - 玩客云、树莓派等 ARM32 设备
+# Docker 会自动选择与当前设备架构匹配的镜像

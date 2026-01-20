@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -22,6 +25,11 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+
+      - name: 设置 QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm/v7
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -51,16 +59,19 @@ jobs:
         with:
           context: ./yx-tools
           file: ./yx-tools/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm/v7
 
       - name: 生成镜像摘要
+        if: github.event_name != 'pull_request'
         run: |
           echo "### 🎉 Docker 镜像构建成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**支持架构:** linux/amd64, linux/arm/v7 (ARM32v7 - 玩客云)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**镜像标签:**" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -69,5 +80,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**使用方法:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# AMD64 或 ARM32v7 设备都可以使用相同命令" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 玩客云一键部署" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v \$(pwd)/data:/app/data -e TZ=Asia/Shanghai ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
