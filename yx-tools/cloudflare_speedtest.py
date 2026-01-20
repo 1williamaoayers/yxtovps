@@ -543,24 +543,38 @@ def download_file(url, filename):
 
 def download_cloudflare_speedtest(os_type, arch_type):
     """下载 CloudflareSpeedTest 可执行文件（优先使用反代版本）"""
+    # 添加调试输出
+    print(f"[DEBUG] 开始查找二进制文件...")
+    print(f"[DEBUG] 系统类型: {os_type}, 架构类型: {arch_type}")
+    
     # 构建二进制文件名
     if os_type == "win":
         proxy_exec_name = f"CloudflareST_proxy_{os_type}_{arch_type}.exe"
     else:
         proxy_exec_name = f"CloudflareST_proxy_{os_type}_{arch_type}"
     
+    print(f"[DEBUG] 期望的二进制文件名: {proxy_exec_name}")
+    
     # 优先检查 /app/ 目录（Docker 容器中编译好的版本）
     app_binary_path = f"/app/{proxy_exec_name}"
+    print(f"[DEBUG] 检查容器内路径: {app_binary_path}")
+    print(f"[DEBUG] 文件是否存在: {os.path.exists(app_binary_path)}")
+    
     if os.path.exists(app_binary_path):
         print(f"✓ 使用容器内编译的二进制文件: {app_binary_path}")
         return app_binary_path
     
     # 检查当前目录（本地运行或手动下载的版本）
+    print(f"[DEBUG] 检查当前目录: {proxy_exec_name}")
+    print(f"[DEBUG] 当前工作目录: {os.getcwd()}")
+    print(f"[DEBUG] 文件是否存在: {os.path.exists(proxy_exec_name)}")
+    
     if os.path.exists(proxy_exec_name):
         print(f"✓ 使用当前目录的二进制文件: {proxy_exec_name}")
         return proxy_exec_name
     
     # 如果都不存在，开始下载
+    print("[DEBUG] 未找到现有二进制文件，开始下载...")
     print("反代版本不存在，开始下载反代版本...")
     
     # 构建下载URL - 使用您的GitHub仓库
