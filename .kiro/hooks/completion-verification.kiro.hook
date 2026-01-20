@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "完成验证检查",
+  "description": "AI完成任务后强制验证：必须有真实测试结果才能打勾",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "任务完成检查：1. 是否有真实测试输出？2. TODO.md打勾是否有依据？3. 是否用中文汇报？4. 是否需要存储知识到memory.db？（学到新技术、解决方案、配置方法时必须存储）如有违规立即纠正"
+  }
+}

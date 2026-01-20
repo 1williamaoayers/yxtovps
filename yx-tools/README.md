@@ -3,11 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![GitHub Actions](https://github.com/1williamaoayers/yxtovps/workflows/Build%20and%20Publish%20Docker%20Image/badge.svg)](https://github.com/1williamaoayers/yxtovps/actions)
-[![Multi-Arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm32v7-blue)](https://github.com/1williamaoayers/yxtovps/pkgs/container/yxtovps)
+[![Multi-Arch](https://img.shields.io/badge/arch-amd64%20%7C%20arm64-blue)](https://github.com/1williamaoayers/yxtovps/pkgs/container/yxtovps)
 
 一个基于 Docker 的 Cloudflare CDN 节点优选工具，带有现代化的 Web 管理界面，支持自动测速、定时任务和多 Worker 节点上传。
 
-**🎯 支持多架构：AMD64 (x86_64) 和 ARM32v7 (玩客云等设备)**
+**🎯 支持多架构：AMD64 (x86_64) 和 ARM64 (aarch64)**
 
 **🇨🇳 国内用户**: 查看 [国内用户快速开始指南](CHINA_QUICKSTART.md) 使用南京大学镜像源加速下载
 
@@ -32,8 +32,10 @@
 
 ### 🌐 多架构支持
 - **AMD64 (x86_64)**：标准 PC、服务器
-- **ARM32v7 (armv7l)**：玩客云、树莓派等 ARM 设备
+- **ARM64 (aarch64)**：树莓派 3/4/5、ARM 服务器等设备
 - **自动识别**：Docker 自动拉取适配当前设备架构的镜像
+
+**注意**：ARM32 (armv7l) 设备（如玩客云）暂不支持，因为上游 CloudflareST 项目未提供 ARM32 二进制文件。如需支持，请使用 ARM64 系统或联系上游项目。
 
 ## 📦 快速开始
 
@@ -49,7 +51,7 @@
 **适合：想要最快速度体验的用户，一条命令搞定！支持所有架构！**
 
 ```bash
-# 国际用户（AMD64 和 ARM32v7 都适用）
+# 国际用户（AMD64 和 ARM64 都适用）
 docker run -d \
   --name cloudflare-speedtest \
   --restart unless-stopped \
@@ -85,17 +87,17 @@ docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 
 
 ---
 
-#### 🎮 玩客云专用部署指南
+#### 🎮 ARM64 设备部署指南（树莓派等）
 
-**玩客云设备（ARM32v7 架构）一键部署：**
+**ARM64 设备（如树莓派 3/4/5）一键部署：**
 
 ```bash
-# 1. SSH 登录到玩客云
-ssh root@玩客云IP
+# 1. SSH 登录到设备
+ssh pi@设备IP
 
 # 2. 创建工作目录
-mkdir -p /opt/cloudflare-speedtest
-cd /opt/cloudflare-speedtest
+mkdir -p ~/cloudflare-speedtest
+cd ~/cloudflare-speedtest
 
 # 3. 一键部署（国内用户推荐使用南京大学镜像源）
 docker run -d \
@@ -117,14 +119,14 @@ docker logs -f cloudflare-speedtest
 ```
 
 **访问 Web 界面**：
-- 在浏览器中打开：`http://玩客云IP:2028`
+- 在浏览器中打开：`http://设备IP:2028`
 - 例如：`http://192.168.1.100:2028`
 
-**玩客云推荐配置**：
-- 测试数量：20-50（避免内存不足）
-- 线程数：100-200（根据网络情况调整）
+**ARM64 设备推荐配置**：
+- 测试数量：50-100（根据设备性能调整）
+- 线程数：200-300（根据网络情况调整）
 - 延迟阈值：300ms
-- 速度下限：3-5 MB/s
+- 速度下限：5 MB/s
 
 ---
 
@@ -311,7 +313,7 @@ docker-compose up -d --build
 - 查看日志中的具体报错信息
 - 确认 Worker 端点可以访问
 
-### 5. ARM32 设备特定问题
+### 5. ARM 设备特定问题
 
 #### 架构不匹配错误
 **错误信息**：`exec /usr/local/bin/python: exec format error`
@@ -325,21 +327,23 @@ docker rm -f cloudflare-speedtest
 docker rmi ghcr.io/1williamaoayers/yxtovps:latest
 
 # 2. 验证设备架构
-uname -m  # 应该显示 armv7l
+uname -m  # ARM64 应该显示 aarch64
 
-# 3. 手动指定平台拉取
-docker pull --platform linux/arm/v7 ghcr.io/1williamaoayers/yxtovps:latest
+# 3. 手动指定平台拉取（仅 ARM64 支持）
+docker pull --platform linux/arm64 ghcr.io/1williamaoayers/yxtovps:latest
 
 # 4. 重新运行容器
 docker run -d --name cloudflare-speedtest --restart unless-stopped -p 2028:2028 -v $(pwd)/data:/app/data -e TZ=Asia/Shanghai ghcr.io/1williamaoayers/yxtovps:latest
 ```
 
-#### 玩客云内存不足
+**注意**：如果你的设备是 ARM32 (armv7l)，例如玩客云，本项目暂不支持，因为上游 CloudflareST 项目未提供 ARM32 二进制文件。
+
+#### ARM64 设备内存不足
 **症状**：容器频繁重启或测速失败
 
 **解决方案**：
-- 降低测试数量到 20-30
-- 降低线程数到 100-150
+- 降低测试数量到 30-50
+- 降低线程数到 150-200
 - 关闭其他不必要的容器或服务
 - 检查内存使用：`free -h`
 

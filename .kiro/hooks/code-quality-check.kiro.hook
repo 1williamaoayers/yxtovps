@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "代码质量检查",
+  "description": "文件修改后自动检查代码规范：中文注释、符合项目规则",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.py",
+      "*.js",
+      "*.ts",
+      "*.md"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "检查刚修改的文件：1. Python/JS代码是否有中文注释 2. 是否符合project-config.md规则 3. 如有问题立即指出并修正"
+  }
+}

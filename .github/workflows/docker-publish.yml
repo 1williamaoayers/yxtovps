@@ -29,7 +29,7 @@ jobs:
       - name: 设置 QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm/v7
+          platforms: linux/amd64,linux/arm/v7,linux/arm64
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -64,14 +64,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm/v7
+          platforms: linux/amd64,linux/arm/v7,linux/arm64
 
       - name: 生成镜像摘要
         if: github.event_name != 'pull_request'
         run: |
           echo "### 🎉 Docker 镜像构建成功！" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**支持架构:** linux/amd64, linux/arm/v7 (ARM32v7 - 玩客云)" >> $GITHUB_STEP_SUMMARY
+          echo "**支持架构:** linux/amd64, linux/arm/v7 (ARM32v7 - 玩客云), linux/arm64 (ARM64)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**镜像标签:**" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -80,7 +80,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**使用方法:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# AMD64 或 ARM32v7 设备都可以使用相同命令" >> $GITHUB_STEP_SUMMARY
+          echo "# AMD64、ARM32v7 或 ARM64 设备都可以使用相同命令" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "# 玩客云一键部署" >> $GITHUB_STEP_SUMMARY

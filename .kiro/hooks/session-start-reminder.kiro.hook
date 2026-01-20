@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "对话开始提醒",
+  "description": "每次新对话开始时，强制执行开工仪式：读取规则、TODO、notes，并检查一致性",
+  "version": "2",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "⚠️ 开工检查：1. 先读取 .antigravityrules 2. 读取 TODO.md 查看当前任务 3. 读取 notes.md 最后50行查看上次进度 4. **一致性检查**：对比 TODO.md 和 notes.md 最后记录，如果不一致（TODO说在做A，但notes最后记录的是B），立即提醒用户可能发生了中断 5. 用中文向用户汇报上次进度和今日目标。严格遵守 project-config.md 规则。"
+  }
+}
