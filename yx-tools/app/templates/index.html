@@ -262,7 +262,10 @@
                 const res = await fetch('/api/results');
                 const data = await res.json();
                 const tbody = document.getElementById('resultsBody');
-                document.getElementById('resultCount').textContent = `${data.length} 个结果`;
+                
+                // 只显示延迟最低的前 20 个结果
+                const displayData = data.slice(0, 20);
+                document.getElementById('resultCount').textContent = `显示前 ${displayData.length} 个 (共 ${data.length} 个)`;
 
                 tbody.innerHTML = '';
 
@@ -271,7 +274,8 @@
                     return;
                 }
 
-                data.forEach(row => {
+                // 使用切片后的数据渲染表格
+                displayData.forEach(row => {
                     const tr = document.createElement('tr');
                     const ip = row['IP 地址'] || row['ip'] || row['IP'];
                     const port = row['端口'] || row['port'] || row['Port'];
