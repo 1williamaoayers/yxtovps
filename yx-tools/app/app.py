@@ -43,7 +43,8 @@ def load_config():
         "count": 20,
         "thread": 200,
         "upload_count": 20,
-        "ipv6": False
+        "ipv6": False,
+        "enable_download": False  # 默认只测延迟，不测下载速度
     }
     
     if os.path.exists(CONFIG_FILE):
@@ -152,8 +153,12 @@ def run_speedtest_job():
         "--clear"
     ]
 
+    # 根据配置添加可选参数
     if config.get("ipv6"):
         cmd.append("--ipv6")
+    
+    if config.get("enable_download"):
+        cmd.append("--enable-download")  # 启用下载测速
     
     logging.info(f"Executing: {' '.join(cmd)}")
 
