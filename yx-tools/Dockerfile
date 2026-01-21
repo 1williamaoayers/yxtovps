@@ -57,9 +57,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ /app/
 COPY cloudflare_speedtest.py /app/
 
-# 创建数据目录用于持久化，并复制 IP 列表到数据目录
+# 创建数据目录并复制 IP 列表到数据目录（确保无论工作目录在哪都能找到）
 RUN mkdir -p /app/data && \
-    cp /app/Cloudflare.txt /app/data/Cloudflare.txt
+    cp /app/Cloudflare.txt /app/data/Cloudflare.txt && \
+    echo "✓ IP list copied to /app/Cloudflare.txt and /app/data/Cloudflare.txt"
 
 # 环境变量
 ENV PYTHONUNBUFFERED=1
@@ -68,9 +69,13 @@ ENV TZ=Asia/Shanghai
 # 暴露端口
 EXPOSE 2028
 
+# 复制启动脚本
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:2028/ || exit 1
 
-# 运行应用
-CMD ["python", "app.py"]
+# 使用启动脚本
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
