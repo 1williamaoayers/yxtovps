@@ -234,6 +234,26 @@ CLOUDFLARE_IPV6_FILE = "Cloudflare_ipv6.txt"
 # 默认测速URL
 DEFAULT_SPEEDTEST_URL = "https://speed.cloudflare.com/__down?measId=&bytes=200000000"
 
+# Cloudflare IPv4 地址段（内置）
+# 数据来源：https://www.cloudflare.com/ips-v4/
+CLOUDFLARE_IPV4_RANGES = [
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+]
+
 # Cloudflare IPv6 地址段（内置）
 # 数据来源：https://www.cloudflare.com/ips-v6/
 CLOUDFLARE_IPV6_RANGES = [
@@ -745,17 +765,35 @@ def download_cloudflare_ips(ip_version="ipv4", ip_file=CLOUDFLARE_IP_FILE):
         print("正在生成 Cloudflare IPv6 地址列表...")
         return generate_ipv6_file()
     else:
-        # IPv4 从网络下载
+        # IPv4 优先从网络下载，失败则使用内置地址段
         print("正在下载 Cloudflare IPv4 列表...")
         
         if not download_file(CLOUDFLARE_IP_URL, CLOUDFLARE_IP_FILE):
-            print("下载 Cloudflare IP 列表失败")
-            return False
+            print("下载失败，使用内置 Cloudflare IPv4 地址段...")
+            # 使用内置地址段生成文件
+            try:
+                with open(CLOUDFLARE_IP_FILE, 'w', encoding='utf-8') as f:
+                    for ip_range in CLOUDFLARE_IPV4_RANGES:
+                        f.write(ip_range + '\n')
+                print(f"✅ 已使用内置地址段生成: {CLOUDFLARE_IP_FILE}")
+                print(f"   共 {len(CLOUDFLARE_IPV4_RANGES)} 个 IPv4 地址段")
+                return True
+            except Exception as e:
+                print(f"❌ 生成 IPv4 地址列表失败: {e}")
+                return False
         
         # 检查文件是否为空
         if os.path.getsize(CLOUDFLARE_IP_FILE) == 0:
-            print("Cloudflare IP 列表文件为空")
-            return False
+            print("Cloudflare IP 列表文件为空，使用内置地址段...")
+            try:
+                with open(CLOUDFLARE_IP_FILE, 'w', encoding='utf-8') as f:
+                    for ip_range in CLOUDFLARE_IPV4_RANGES:
+                        f.write(ip_range + '\n')
+                print(f"✅ 已使用内置地址段生成: {CLOUDFLARE_IP_FILE}")
+                return True
+            except Exception as e:
+                print(f"❌ 生成 IPv4 地址列表失败: {e}")
+                return False
         
         print(f"Cloudflare IP 列表已保存到: {CLOUDFLARE_IP_FILE}")
         return True
