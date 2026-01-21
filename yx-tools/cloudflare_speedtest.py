@@ -2076,7 +2076,11 @@ def run_with_args(args):
                 cmd = [exec_name]
             else:
                 cmd = [f"./{exec_name}"]
-            output_file = "result.csv"
+            # 在Docker/Linux环境下，如果有data目录，则输出到data目录
+            if os.path.exists("data") and os.path.isdir("data"):
+                output_file = "data/result.csv"
+            else:
+                output_file = "result.csv"
         
         cmd.extend([
             "-f", ip_file,
