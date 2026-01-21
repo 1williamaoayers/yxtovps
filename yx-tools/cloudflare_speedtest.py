@@ -3988,6 +3988,11 @@ def upload_to_cloudflare_api_cli(result_file="result.csv", worker_domain=None, u
     print(" 命令行模式：Cloudflare Workers API 上报")
     print("=" * 70)
     
+    # 自动路径切换：如果指定的文件不存在，但data目录下存在（针对Docker环境），则自动切换
+    if not os.path.exists(result_file) and result_file == "result.csv" and os.path.exists("data/result.csv"):
+        result_file = "data/result.csv"
+        print(f"  (自动切换到 {result_file})")
+    
     # 准备结果记录对象
     current_result = {
         "worker": worker_domain,
