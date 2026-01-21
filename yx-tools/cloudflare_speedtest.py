@@ -1931,8 +1931,11 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 快速测试模式（默认参数）
+  # 快速测试模式（默认只做延迟测速，不下载）
   python cloudflare_speedtest.py --mode beginner
+  
+  # 快速测试模式（启用下载测速）
+  python cloudflare_speedtest.py --mode beginner --enable-download
   
   # 指定测试参数
   python cloudflare_speedtest.py --mode beginner --count 20 --speed 2 --delay 500
@@ -1974,6 +1977,8 @@ def parse_args():
                        help='延迟上限 ms（默认: 1000）')
     parser.add_argument('--thread', type=int, default=200,
                        help='延迟测速线程数；越多延迟测速越快，性能弱的设备(如路由器)请勿太高（默认: 200, 最多: 1000）')
+    parser.add_argument('--enable-download', action='store_true',
+                       help='启用下载测速（默认只做延迟测速，下载测速较慢）')
     
     # 常规测速模式参数
     parser.add_argument('--region', type=str,
@@ -2061,6 +2066,14 @@ def run_with_args(args):
         print(f"  延迟上限: {args.delay} ms")
         print(f"  延迟测速线程数: {args.thread}")
         
+        # 根据 --enable-download 参数决定是否启用下载测速
+        if args.enable_download:
+            print(f"  下载测速: 启用（测试前 {args.count} 个IP）")
+            dn_value = str(args.count)  # 启用下载测速
+        else:
+            print(f"  下载测速: 禁用（仅延迟测速，速度更快）")
+            dn_value = "0"  # 禁用下载测速，只做延迟测速
+        
         # 验证线程数
         if args.thread < 1 or args.thread > 1000:
             print(f"❌ 线程数必须在 1-1000 之间，当前值: {args.thread}")
@@ -2085,7 +2098,7 @@ def run_with_args(args):
         cmd.extend([
             "-f", ip_file,
             "-n", str(args.thread),
-            "-dn", str(args.count),
+            "-dn", dn_value,  # 使用动态计算的 dn_value
             "-sl", str(args.speed),
             "-tl", str(args.delay),
             "-url", DEFAULT_SPEEDTEST_URL,
