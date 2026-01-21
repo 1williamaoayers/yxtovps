@@ -74,7 +74,7 @@ else
         echo ""
         
         # 启动 Flask Web 应用（前台运行，保持容器运行）
-        exec python3 /app/app/app.py
+        exec python3 /app/app.py
     fi
     
     # 脚本运行完成后，检查是否设置了定时任务
