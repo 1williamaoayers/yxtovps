@@ -2066,14 +2066,6 @@ def run_with_args(args):
         print(f"  延迟上限: {args.delay} ms")
         print(f"  延迟测速线程数: {args.thread}")
         
-        # 根据 --enable-download 参数决定是否启用下载测速
-        if args.enable_download:
-            print(f"  下载测速: 启用（测试前 {args.count} 个IP）")
-            dn_value = str(args.count)  # 启用下载测速
-        else:
-            print(f"  下载测速: 禁用（仅延迟测速，速度更快）")
-            dn_value = "0"  # 禁用下载测速，只做延迟测速
-        
         # 验证线程数
         if args.thread < 1 or args.thread > 1000:
             print(f"❌ 线程数必须在 1-1000 之间，当前值: {args.thread}")
@@ -2095,15 +2087,30 @@ def run_with_args(args):
             else:
                 output_file = "result.csv"
         
-        cmd.extend([
-            "-f", ip_file,
-            "-n", str(args.thread),
-            "-dn", dn_value,  # 使用动态计算的 dn_value
-            "-sl", str(args.speed),
-            "-tl", str(args.delay),
-            "-url", DEFAULT_SPEEDTEST_URL,
-            "-o", output_file
-        ])
+        # 根据 --enable-download 参数决定是否启用下载测速
+        if args.enable_download:
+            print(f"  下载测速: 启用（测试前 {args.count} 个IP）")
+            # 启用下载测速，设置下载测速数量
+            cmd.extend([
+                "-f", ip_file,
+                "-n", str(args.thread),
+                "-dn", str(args.count),  # 下载测速数量
+                "-sl", str(args.speed),
+                "-tl", str(args.delay),
+                "-url", DEFAULT_SPEEDTEST_URL,
+                "-o", output_file
+            ])
+        else:
+            print(f"  下载测速: 禁用（仅延迟测速，速度更快）")
+            # 禁用下载测速，使用 -dd 参数
+            cmd.extend([
+                "-f", ip_file,
+                "-n", str(args.thread),
+                "-dd",  # 禁用下载测速
+                "-tl", str(args.delay),
+                "-url", DEFAULT_SPEEDTEST_URL,
+                "-o", output_file
+            ])
         
         print(f"\n运行命令: {' '.join(cmd)}")
         print("=" * 50)
