@@ -58,21 +58,23 @@ else
         # 交互式环境（有终端），运行交互模式
         python3 /app/cloudflare_speedtest.py
     else
-        # 非交互式环境（无终端），显示帮助信息
-        echo "检测到非交互式环境，请使用以下方式运行："
+        # 非交互式环境（无终端），启动 Web 管理界面
+        echo "=========================================="
+        echo "  Cloudflare Speedtest Web 管理界面"
+        echo "=========================================="
         echo ""
-        echo "1. 使用命令行参数模式："
-        echo "   docker exec -it <container_name> python3 /app/cloudflare_speedtest.py --mode beginner --count 10"
+        echo "✓ 启动 Flask Web 应用..."
+        echo "✓ 访问地址: http://localhost:2028"
+        echo "✓ 容器名称: cloudflare-speedtest"
         echo ""
-        echo "2. 进入容器后运行交互模式："
-        echo "   docker exec -it <container_name> bash"
-        echo "   python3 /app/cloudflare_speedtest.py"
+        echo "使用以下命令管理："
+        echo "  查看日志: docker logs cloudflare-speedtest"
+        echo "  进入容器: docker exec -it cloudflare-speedtest bash"
+        echo "  运行测速: docker exec -it cloudflare-speedtest python3 /app/cloudflare_speedtest.py"
         echo ""
-        echo "3. 使用环境变量设置定时任务："
-        echo "   docker run -e CRON_SCHEDULE='0 2 * * *' -e CRON_COMMAND='python3 /app/cloudflare_speedtest.py --mode beginner' ..."
-        echo ""
-        echo "查看帮助信息："
-        python3 /app/cloudflare_speedtest.py --help || true
+        
+        # 启动 Flask Web 应用（前台运行，保持容器运行）
+        exec python3 /app/app/app.py
     fi
     
     # 脚本运行完成后，检查是否设置了定时任务
